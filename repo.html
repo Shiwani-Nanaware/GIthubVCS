@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repository Details</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="repo-header-left">
+            <a href="index.html" class="back-link">&leftarrow;</a>
+            <div class="repo-name-text">LeetCode</div>
+        </div>
+        <div class="repo-search-container">
+            <div class="search-box">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 001.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 00-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 005.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+                <input type="text" id="repoSearchInput" placeholder="Search files..." oninput="filterFiles()">
+            </div>
+        </div>
+        <div class="repo-header-right">
+            <div class="repo-header-right-buttons">
+                <button class="icon-btn" onclick="performUndo()">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12.5 8c-2.65 0-5.1.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.09 0 5.67 1.93 6.64 4.54l2.25-.89C21.08 11.23 17.15 8 12.5 8z"/>
+                    </svg>
+                    <span>Undo</span>
+                </button>
+                <button class="icon-btn" onclick="performRedo()">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18.42 5.67l.89-2.25C17.15 1.77 13.22-1.4 8.5 2.12v1.88c2.65 0 5.1-.99 6.9-2.6L22 7v9h-9l3.62-3.62c-1.39-1.16-3.16-1.88-5.12-1.88-3.09 0-5.67 1.93-6.64 4.54l-2.25-.89C2.92 11.23 6.85 8 11.5 8z"/>
+                    </svg>
+                    <span>Redo</span>
+                </button>
+                <button onclick="openModal('historyModal')">History</button> 
+                <button onclick="openModal('taskQueueModal')">Tasks</button>
+            </div>
+        </div>
+    </header>
+    <main class="repo-page-main">
+        <section class="repo-content">
+            <p class="repo-description-text">DSA Questions</p>
+            <div class="repo-nav">
+                <button class="nav-btn active" onclick="showSection('files')">Files</button>
+                <button class="nav-btn" onclick="showSection('commits')">Commits</button>
+            </div>
+            <div id="files-section" class="content-section active-section">
+                <div class="file-actions">
+                    <button class="create-file-btn" onclick="openModal('newFileModal')">+ Create File</button>
+                    <button class="upload-file-btn" onclick="openModal('uploadFileModal')">Upload File</button>
+                </div>
+                <div id="fileListContainer" class="file-list-container">
+                </div>
+            </div>
+            <div id="commits-section" class="content-section">
+                <div class="commit-list-container">
+                    </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="newFileModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('newFileModal')">&times;</span>
+            <h2>Create New File</h2>
+            <p>Add a new file to your repository</p>
+            <label for="fileName">File Name</label>
+            <input type="text" id="fileName" placeholder="index.js">
+            <label for="filePath">File Path (optional)</label>
+            <input type="text" id="filePath" placeholder="src/components">
+            <label for="fileContent">Content</label>
+            <textarea id="fileContent" placeholder="Enter your code here..."></textarea>
+            <label for="commitMessage">Commit Message</label>
+            <input type="text" id="commitMessage" placeholder="Created new file">
+            <button class="modal-action-btn" onclick="createNewFile()">Create File</button>
+        </div>
+    </div>
+    <div id="uploadFileModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('uploadFileModal')">&times;</span>
+            <h2>Upload File</h2>
+            <p>Upload a file to your repository</p>
+            <label for="chooseFileBtn">Choose File</label>
+            <input type="file" id="actualChooseFile" style="display: none;" onchange="updateFileName(this)">
+            <button id="chooseFileBtn" class="custom-file-upload" onclick="document.getElementById('actualChooseFile').click();">No file chosen</button>
+            <label for="uploadFilePath">File Path (optional)</label>
+            <input type="text" id="uploadFilePath" placeholder="src/components">
+            <label for="uploadCommitMessage">Commit Message</label>
+            <input type="text" id="uploadCommitMessage" placeholder="Uploaded new file">
+            <button class="modal-action-btn" onclick="uploadFile()">Upload File</button>
+        </div>
+    </div>
+    <div id="taskQueueModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('taskQueueModal')">&times;</span>
+            <h2>Task Queue</h2>
+            <p>Manage issues and tasks for this repository</p>
+            <h3>Add New Task</h3>
+            <label for="taskTitle">Title</label>
+            <input type="text" id="taskTitle" placeholder="Task title">
+            <label for="taskDescription">Description</label>
+            <textarea id="taskDescription" placeholder="Task description"></textarea>
+            <button class="modal-action-btn add-task-btn" onclick="addTask()">+ Add Task</button>
+            <h3 class="open-tasks-header">Open Tasks (<span id="openTasksCount">0</span>)</h3>
+            <div id="tasksList" class="tasks-list">
+            </div>
+        </div>
+    </div>
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('historyModal')">&times;</span>
+            <h2>Undo/Redo History</h2>
+            <p>View the history of file actions for this repository</p>
+            <h3>Undo Stack (<span id="undoCount">0</span> actions)</h3>
+            <div id="undoList" class="history-stack-container">
+                <div class="no-history-message">No actions to undo</div>
+            </div>
+            <h3 class="redo-header">Redo Stack (<span id="redoCount">1</span> actions)</h3>
+            <div id="redoList" class="history-stack-container">
+                <div class="history-item redo-item">
+                    <span class="history-action-icon">+ Add</span>
+                    <span class="history-action-text">Hello</span>
+                    <span class="history-action-date">10/7/2025, 5:08:00 PM</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="editFileModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('editFileModal')">&times;</span>
+            <h2>Edit File</h2>
+            <label for="editFileName">File Name</label>
+            <input type="text" id="editFileName">
+            <label for="editFileContent">File Content</label>
+            <textarea id="editFileContent" placeholder="Enter file content here..."></textarea>
+            <div class="modal-actions-group">
+                <button class="modal-cancel-btn" onclick="closeModal('editFileModal')">Cancel</button>
+                <button class="modal-action-btn" onclick="saveFileChanges()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+    <div id="deleteFileModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('deleteFileModal')">&times;</span>
+            <h2>Delete File</h2>
+            <p>Are you sure you want to delete <strong id="deleteFileName"></strong>?</p>
+            <div class="modal-actions-group">
+                <button class="modal-cancel-btn" onclick="closeModal('deleteFileModal')">No</button>
+                <button class="modal-delete-btn" onclick="confirmDeleteFile()">Yes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="viewFileModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('viewFileModal')">&times;</span>
+            <h2>File Content: <span id="viewFileName"></span></h2>
+            <div class="file-content-viewer">
+                <pre id="viewFileContent"></pre>
+            </div>
+            <div class="modal-actions-group">
+                <button class="modal-cancel-btn" onclick="closeModal('viewFileModal')">Close</button>
+                <button class="modal-action-btn" onclick="openEditFileModal(document.getElementById('viewFileName').textContent); closeModal('viewFileModal');">Edit File</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

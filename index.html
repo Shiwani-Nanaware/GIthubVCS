@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitVersion - Your Repositories</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <svg class="github-logo-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M12 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.799 8.205 11.385.6.11.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.043-1.61-4.043-1.61-.546-1.387-1.332-1.756-1.332-1.756-1.09-.745.083-.73.083-.73 1.205.084 1.838 1.238 1.838 1.238 1.07 1.834 2.807 1.304 3.49.997.108-.775.419-1.304.762-1.603-2.665-.304-5.464-1.332-5.464-5.93 0-1.31.465-2.38 1.235-3.22-.12-.303-.535-1.52.117-3.176 0 0 1-.322 3.296 1.23.955-.266 1.98-.4 3.003-.404 1.022.004 2.048.138 3.004.404 2.295-1.552 3.24-1.23 3.24-1.23.653 1.655.238 2.873.118 3.176.77.84 1.233 1.91 1.233 3.22 0 4.61-2.8 5.62-5.474 5.922.43.37.817 1.102.817 2.22 0 1.604-.015 2.896-.015 3.286 0 .32.21.693.825.576C20.565 21.795 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+            </svg>
+            GitVersion
+        </div>
+    </header>
+    <main>
+        <section class="dashboard-header">
+            <div class="header-left">
+                <h2>Your Repositories</h2>
+                <p>Manage and access your projects</p>
+                <div class="dashboard-search-container">
+                    <div class="search-box">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 001.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 00-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 005.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                        </svg>
+                        <input type="text" id="repoSearchInput" placeholder="Search repositories..." oninput="searchRepositories()">
+                    </div>
+                </div>
+            </div>
+            <button class="new-repo-btn" onclick="openModal('newRepoModal')">+ New Repository</button>
+        </section>
+        <div id="repo-grid" class="repo-grid">
+            </div>
+    </main>
+
+    <div id="newRepoModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('newRepoModal')">&times;</span>
+            <h2>Create New Repository</h2>
+            <p>Create a new repository to store your project files</p>
+            <label for="repoName">Repository Name</label>
+            <input type="text" id="repoName" placeholder="my-awesome-project">
+            <label for="repoDescription">Description (optional)</label>
+            <textarea id="repoDescription" placeholder="A brief description of your project"></textarea>
+            <div class="private-toggle">
+                <span>Private Repository</span>
+                <label class="switch">
+                    <input type="checkbox">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <button class="modal-action-btn" onclick="createRepository()">Create Repository</button>
+        </div>
+    </div>
+    
+    <div id="editRepoModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('editRepoModal')">&times;</span>
+            <h2>Edit Repository</h2>
+            <p>Update your repository details</p>
+            <label for="editRepoName">Repository Name</label>
+            <input type="text" id="editRepoName" placeholder="my-awesome-project">
+            <label for="editRepoDescription">Description (optional)</label>
+            <textarea id="editRepoDescription" placeholder="A brief description of your project"></textarea>
+            <div class="modal-actions-group">
+                <button class="modal-cancel-btn" onclick="closeModal('editRepoModal')">Cancel</button>
+                <button class="modal-action-btn" onclick="saveRepoChanges()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteRepoModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('deleteRepoModal')">&times;</span>
+            <h2>Delete Repository</h2>
+            <p>Are you sure you want to delete the repository <strong id="deleteRepoName"></strong>?</p>
+            <div class="modal-actions-group">
+                <button class="modal-cancel-btn" onclick="closeModal('deleteRepoModal')">No</button>
+                <button class="modal-delete-btn" onclick="confirmDeleteRepo()">Yes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

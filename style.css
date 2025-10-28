@@ -1,0 +1,863 @@
+/* General Styling */
+body {
+    background-color: #1a1a2e;
+    color: #e0e0e0;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+}
+
+body.modal-open {
+    overflow: hidden;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 30px;
+    border-bottom: 1px solid #30304a;
+}
+
+.logo {
+    display: flex; /* Use flexbox to align logo and text */
+    align-items: center;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.github-logo-icon {
+    height: 30px; /* Adjust the height as needed */
+    width: 30px; /* Ensure width is also set for SVG */
+    margin-right: 10px; /* Space between the logo and text */
+    fill: #e0e0e0; /* Set the fill color to match your text color */
+}
+
+main {
+    padding: 20px 30px;
+}
+
+/* Dashboard Page Specific Styling */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap; 
+}
+
+.header-left {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.dashboard-header h2 {
+    font-size: 28px;
+    margin: 0;
+}
+
+.dashboard-header p {
+    color: #888;
+    margin: 0;
+    margin-bottom: 10px;
+}
+
+.new-repo-btn {
+    background: linear-gradient(to right, #6a11cb 0%, #2575fc 100%);
+    border: none;
+    color: white;
+    padding: 12px 25px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.new-repo-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+    opacity: 0.9;
+}
+
+.repo-search-bar {
+    margin-bottom: 20px;
+}
+
+.repo-search-bar input {
+    width: 100%;
+    padding: 10px 15px;
+    background-color: #2a2a44;
+    border: 1px solid #30304a;
+    border-radius: 5px;
+    color: #e0e0e0;
+    box-sizing: border-box;
+    font-size: 16px;
+}
+
+.repo-search-bar input::placeholder {
+    color: #888;
+}
+
+.repo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.repo-card {
+    background-color: #2a2a44;
+    padding: 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+    border: 1px solid transparent;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    position: relative;
+}
+
+.repo-card:hover {
+    transform: translateY(-5px);
+    border-color: #6a11cb;
+}
+
+.repo-card h3 {
+    margin: 0 0 5px;
+    font-size: 20px;
+}
+
+.repo-card p {
+    color: #aaa;
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+.repo-card span {
+    font-size: 12px;
+    color: #777;
+    display: block;
+    margin-top: 10px;
+}
+
+.repo-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.repo-actions-icons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.repo-card-edit-btn, .repo-card-delete-btn {
+    background: none;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    padding: 5px;
+    transition: color 0.3s;
+}
+
+.repo-card-edit-btn:hover, .repo-card-delete-btn:hover {
+    color: #fff;
+}
+
+.repo-card-edit-btn svg, .repo-card-delete-btn svg {
+    height: 20px;
+    width: 20px;
+}
+
+/* Project Page Specific Styling */
+.repo-header-left {
+    display: flex;
+    align-items: center;
+}
+
+.repo-search-container {
+    flex: 1;
+    max-width: 500px;
+    margin: 0 20px;
+}
+
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-icon {
+    position: absolute;
+    left: 12px;
+    width: 18px;
+    height: 18px;
+    color: #8b949e;
+    pointer-events: none;
+}
+
+#repoSearchInput {
+    width: 100%;
+    padding: 8px 10px 8px 40px;
+    background-color: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    color: #c9d1d9;
+    font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#repoSearchInput:focus {
+    outline: none;
+    border-color: #1f6feb;
+    box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.3);
+}
+
+#repoSearchInput::placeholder {
+    color: #8b949e;
+}
+
+.back-link {
+    color: #e0e0e0;
+    font-size: 24px;
+    text-decoration: none;
+    margin-right: 15px;
+    transition: color 0.3s;
+}
+
+.back-link:hover {
+    color: #2575fc;
+}
+
+.repo-name-text {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.repo-header-right {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.repo-header-right-buttons {
+    display: flex;
+    gap: 10px; /* Space between the buttons */
+}
+
+.repo-header-right button {
+    background-color: #3a3a5a;
+    border: none;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.repo-header-right button:hover {
+    background-color: #4a4a6e;
+}
+
+/* New icon-only button style */
+.icon-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.icon-btn .icon-svg {
+    height: 16px;
+    width: 16px;
+}
+
+.repo-page-main {
+    padding-top: 0;
+}
+
+.repo-description-text {
+    color: #888;
+    margin-bottom: 20px;
+}
+
+.repo-nav {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+}
+
+.nav-btn {
+    background-color: #2a2a44;
+    border: 1px solid #3a3a5a;
+    border-right: none;
+    color: #e0e0e0;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.nav-btn:first-child {
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+}
+
+.nav-btn:last-child {
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+    border-right: 1px solid #3a3a5a;
+}
+
+.nav-btn.active {
+    background-color: #3a3a5a;
+    color: #fff;
+}
+
+.nav-btn:hover:not(.active) {
+    background-color: #4a4a6e;
+}
+
+.file-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.create-file-btn, .upload-file-btn {
+    background: linear-gradient(to right, #6a11cb 0%, #2575fc 100%);
+    border: none;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: opacity 0.3s;
+}
+
+.upload-file-btn {
+    background: #3a3a5a;
+}
+
+.create-file-btn:hover, .upload-file-btn:hover {
+    opacity: 0.9;
+}
+
+/* New File List and Commit List Styles */
+.file-list-container, .commit-list-container {
+    padding: 0;
+}
+
+.file-item, .commit-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #2a2a44;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+}
+
+.file-details {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-grow: 1;
+}
+
+.file-icon {
+    width: 24px;
+    height: 24px;
+    color: #fff;
+}
+
+.file-info-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.file-name {
+    font-weight: bold;
+    color: #fff;
+    font-size: 16px;
+}
+
+.file-meta {
+    font-size: 12px;
+    color: #888;
+}
+
+.file-date {
+    font-size: 14px;
+    color: #888;
+}
+
+.file-actions-icons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.file-actions-icons button {
+    background: none;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.3s;
+}
+
+.file-actions-icons button:hover {
+    color: #fff;
+}
+
+.file-actions-icons svg {
+    height: 18px;
+    width: 18px;
+}
+
+
+.commit-msg {
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #fff;
+}
+
+.commit-details {
+    font-size: 14px;
+    color: #aaa;
+}
+
+.commit-author {
+    font-weight: bold;
+    color: #fff;
+}
+
+.commit-date {
+    margin-left: 10px;
+    color: #777;
+}
+
+/* No files/commits message */
+.no-files-message, .no-commits-message {
+    display: none;
+}
+
+/* Modal Styling */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6);
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background-color: #1a1a2e;
+    margin: auto;
+    padding: 30px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+    position: relative;
+    border: 1px solid #30304a;
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+.modal-content p {
+    color: #aaa;
+    margin-bottom: 20px;
+}
+
+.close-button {
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    cursor: pointer;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: #e0e0e0;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.modal-content label {
+    display: block;
+    margin-top: 15px;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #e0e0e0;
+}
+
+.modal-content input[type="text"],
+.modal-content textarea {
+    width: calc(100% - 22px);
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #30304a;
+    border-radius: 5px;
+    background-color: #2a2a44;
+    color: #e0e0e0;
+    font-size: 16px;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 40px;
+}
+
+.modal-content textarea {
+    min-height: 100px;
+}
+
+.modal-content input[type="text"]::placeholder,
+.modal-content textarea::placeholder {
+    color: #888;
+}
+
+.modal-action-btn {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(to right, #6a11cb 0%, #2575fc 100%);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: opacity 0.3s;
+}
+
+.modal-action-btn:hover {
+    opacity: 0.9;
+}
+
+.modal-cancel-btn {
+    background-color: transparent;
+    border: 1px solid #888;
+    color: #888;
+    padding: 12px 20px;
+    border-radius: 5px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.modal-cancel-btn:hover {
+    background-color: #3a3a5a;
+    color: #fff;
+}
+
+.modal-delete-btn {
+    background-color: #ff6b6b;
+    border: none;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 5px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: opacity 0.3s;
+}
+
+.modal-delete-btn:hover {
+    opacity: 0.8;
+}
+
+.modal-actions-group {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+/* Toggle Switch Styling */
+.private-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    margin-bottom: 15px;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 45px;
+    height: 25px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #4a4a6e;
+    transition: .4s;
+    border-radius: 25px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 17px;
+    width: 17px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: #2196F3;
+}
+
+input:checked + .slider:before {
+    transform: translateX(20px);
+}
+
+/* Custom File Upload Button */
+.custom-file-upload {
+    display: block;
+    width: calc(100% - 22px);
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #30304a;
+    border-radius: 5px;
+    background-color: #2a2a44;
+    color: #e0e0e0;
+    font-size: 16px;
+    text-align: left;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.custom-file-upload:hover {
+    background-color: #3a3a5a;
+    border-color: #4a4a6e;
+}
+
+/* Task Queue Specific Styles (unchanged from last response) */
+.modal-content .add-task-btn {
+    margin-top: 15px;
+}
+
+.open-tasks-header {
+    margin-top: 30px;
+    margin-bottom: 15px;
+    font-size: 18px;
+    border-top: 1px solid #30304a;
+    padding-top: 20px;
+}
+
+.tasks-list {
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.task-item {
+    background-color: #2a2a44;
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #30304a;
+}
+
+.task-item:last-child {
+    margin-bottom: 0;
+}
+
+.task-item .task-details {
+    flex-grow: 1;
+}
+
+.task-item h4 {
+    margin: 0 0 5px 0;
+    color: #e0e0e0;
+}
+
+.task-item p {
+    margin: 0;
+    font-size: 14px;
+    color: #aaa;
+}
+
+.task-item .remove-task-btn {
+    background: none;
+    border: none;
+    color: #ff6b6b;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 5px;
+    margin-left: 10px;
+}
+
+.task-item .remove-task-btn:hover {
+    color: #ff4757;
+}
+
+/* New History Modal Styles */
+.history-stack-container {
+    background-color: #2a2a44;
+    border-radius: 5px;
+    padding: 15px;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+}
+
+.history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.history-item:last-child {
+    margin-bottom: 0;
+}
+
+.history-action-icon {
+    background-color: #28a745;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.history-action-text {
+    flex-grow: 1;
+    margin-left: 10px;
+}
+
+.history-action-date {
+    font-size: 12px;
+    color: #888;
+    white-space: nowrap;
+}
+
+.redo-header {
+    margin-top: 20px;
+}
+
+.no-history-message {
+    text-align: center;
+    color: #888;
+    padding: 20px;
+}
+
+/* File Content Viewer */
+.file-content-viewer {
+    background-color: #2a2a44;
+    border-radius: 5px;
+    padding: 15px;
+    margin: 15px 0;
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #30304a;
+}
+
+.file-content-viewer pre {
+    margin: 0;
+    color: #e0e0e0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* File actions styling */
+.view-file-btn {
+    background: none;
+    border: none;
+    color: #4CAF50;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.3s;
+}
+
+.view-file-btn:hover {
+    color: #66BB6A;
+}
+
+.view-file-btn svg {
+    height: 18px;
+    width: 18px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    header, main {
+        padding: 10px 15px;
+    }
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .new-repo-btn {
+        width: 100%;
+        margin-top: 15px;
+    }
+    .repo-header-right {
+        margin-top: 15px;
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-around;
+    }
+    .repo-header-right button {
+        margin: 5px;
+    }
+    .modal-content {
+        padding: 20px;
+    }
+    .modal-content h2 {
+        font-size: 20px;
+    }
+    .file-content-viewer {
+        max-height: 250px;
+    }
+}
