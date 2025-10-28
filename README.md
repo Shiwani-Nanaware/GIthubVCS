@@ -37,7 +37,7 @@ A GitHub-like repository management system with both C++ backend and web fronten
 4. Use the interactive CLI to manage repositories
 
 ### Option 2: Web Interface Mode
-1. Run `run.bat` or compile and execute the C++ program
+1. Run `.\run.bat` or compile and execute the C++ program
 2. Choose option 2 for web mode
 3. Open `index.html` in your web browser
 4. The C++ backend will generate `data.json` that the web interface reads
