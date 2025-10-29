@@ -850,6 +850,98 @@ main {
 }
 
 /* Modal Styling */
+/* Enhanced File Modals */
+#viewFileModal .modal-content,
+#editFileModal .modal-content {
+    width: 90%;
+    max-width: 1000px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Edit file modal specific styles */
+#editFileModal .modal-content {
+    padding: 25px;
+}
+
+#editFileModal h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #e0e0e0;
+}
+
+#editFileName {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 20px;
+    border: 1px solid #30304a;
+    border-radius: 6px;
+    background-color: #2a2a44;
+    color: #e0e0e0;
+    font-size: 16px;
+}
+
+#editFileContent {
+    flex: 1;
+    min-height: 400px;
+    width: 100%;
+    padding: 15px;
+    border: 1px solid #30304a;
+    border-radius: 6px;
+    background-color: #0d1117;
+    color: #c9d1d9;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: none;
+    margin-bottom: 20px;
+    white-space: pre;
+    overflow-x: auto;
+}
+
+#editFileContent:focus {
+    outline: none;
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.3);
+}
+
+/* View file modal specific styles */
+#viewFileModal .modal-content {
+    padding: 25px;
+}
+
+.file-content-viewer {
+    flex: 1;
+    overflow: auto;
+    background-color: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 16px;
+    margin: 10px 0;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    color: #c9d1d9;
+    max-height: 70vh;
+    position: relative;
+}
+
+#viewFileContent {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+#viewFileName {
+    color: #58a6ff;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 14px;
+    margin-bottom: 10px;
+    word-break: break-all;
+}
+
 .modal {
     display: none;
     position: fixed;
@@ -1192,7 +1284,7 @@ input:checked + .slider:before {
 
 /* File Content Viewer */
 .file-content-viewer {
-    background-color: #2a2a44;
+    background-color: #0d1117;
     border-radius: 5px;
     padding: 15px;
     margin: 15px 0;

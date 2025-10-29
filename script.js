@@ -1146,18 +1146,92 @@ function getActionIcon(action) {
     }
 }
 
-// View file content
+// View file content in a large modal with syntax highlighting
 function viewFileContent(fileName) {
     const currentRepo = repositories.find(r => r.name === currentRepoName);
     const file = currentRepo ? currentRepo.files.find(f => f.name === fileName) : null;
     
     if (file) {
-        document.getElementById('viewFileName').textContent = fileName;
-        document.getElementById('viewFileContent').textContent = file.content || 'No content available';
+        const fileNameElement = document.getElementById('viewFileName');
+        const fileContentElement = document.getElementById('viewFileContent');
+        
+        // Set file name and content
+        fileNameElement.textContent = fileName;
+        
+        // Get file extension for syntax highlighting
+        const fileExtension = fileName.split('.').pop().toLowerCase();
+        const language = getLanguageFromExtension(fileExtension);
+        
+        // Apply syntax highlighting if supported language
+        if (language && file.content) {
+            fileContentElement.innerHTML = ''; // Clear previous content
+            const codeElement = document.createElement('code');
+            codeElement.className = `language-${language}`;
+            codeElement.textContent = file.content;
+            fileContentElement.appendChild(codeElement);
+            
+            // Apply syntax highlighting
+            if (window.Prism) {
+                Prism.highlightElement(codeElement);
+            }
+        } else {
+            // Fallback for unsupported file types
+            fileContentElement.textContent = file.content || 'No content available';
+        }
+        
+        // Open the modal
         openModal('viewFileModal');
+        
+        // Add line numbers if it's a code file
+        if (language) {
+            fileContentElement.classList.add('line-numbers');
+            if (window.Prism) {
+                Prism.hooks.run('line-numbers', fileContentElement);
+            }
+        } else {
+            fileContentElement.classList.remove('line-numbers');
+        }
     } else {
-        alert('File not found');
+        showNotification('File not found', 'error');
     }
+}
+
+// Helper function to determine language from file extension
+function getLanguageFromExtension(ext) {
+    const languageMap = {
+        'js': 'javascript',
+        'jsx': 'jsx',
+        'ts': 'typescript',
+        'tsx': 'tsx',
+        'html': 'html',
+        'css': 'css',
+        'json': 'json',
+        'md': 'markdown',
+        'py': 'python',
+        'java': 'java',
+        'c': 'c',
+        'cpp': 'cpp',
+        'cs': 'csharp',
+        'php': 'php',
+        'rb': 'ruby',
+        'go': 'go',
+        'rs': 'rust',
+        'swift': 'swift',
+        'kt': 'kotlin',
+        'sh': 'bash',
+        'yaml': 'yaml',
+        'yml': 'yaml',
+        'xml': 'xml',
+        'sql': 'sql',
+        'diff': 'diff',
+        'dockerfile': 'docker',
+        'gitignore': 'git',
+        'gradle': 'gradle',
+        'properties': 'properties',
+        'txt': 'text'
+    };
+    
+    return languageMap[ext] || null;
 }
 
 // -------------------- Branch Management Functions --------------------
