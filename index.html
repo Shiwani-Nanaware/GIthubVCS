@@ -14,6 +14,20 @@
             </svg>
             GitVersion
         </div>
+        <div class="header-actions">
+            <button class="icon-btn" onclick="performUndo()" title="Undo">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12.5 8c-2.65 0-5.1.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.09 0 5.67 1.93 6.64 4.54l2.25-.89C21.08 11.23 17.15 8 12.5 8z"/>
+                </svg>
+                <span>Undo</span>
+            </button>
+            <button class="icon-btn" onclick="performRedo()" title="Redo">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18.42 5.67l.89-2.25C17.15 1.77 13.22-1.4 8.5 2.12v1.88c2.65 0 5.1-.99 6.9-2.6L22 7v9h-9l3.62-3.62c-1.39-1.16-3.16-1.88-5.12-1.88-3.09 0-5.67 1.93-6.64 4.54l-2.25-.89C2.92 11.23 6.85 8 11.5 8z"/>
+                </svg>
+                <span>Redo</span>
+            </button>
+        </div>
     </header>
     <main>
         <section class="dashboard-header">

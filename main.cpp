@@ -244,31 +244,63 @@ public:
 
     // -------------------- File Operations --------------------
     void createFile(Repository* repo, string fileName, string content) {
-        if (findFile(repo, fileName)) { cout << "File already exists!\n"; return; }
+        if (findFile(repo, fileName)) { 
+            cout << "File already exists!\n"; 
+            return; 
+        }
+        // Save the current state for undo
+        undoStack.push({"createFile", repo->repoName, fileName, content});
+        
+        // Perform the operation
         File* newFile = new File(fileName, content);
         newFile->next = repo->fileHead;
         repo->fileHead = newFile;
+        
+        // Add to commit history
         commits.addCommit("Created File: " + fileName, currentUser);
-        undoStack.push({"deleteFile", repo->repoName, fileName, ""});
         cout << "File created successfully.\n";
     }
 
     void deleteFile(Repository* repo, string fileName) {
         File* temp = repo->fileHead, *prev = NULL;
         while (temp && temp->name != fileName) { prev = temp; temp = temp->next; }
-        if (!temp) { cout << "File not found.\n"; return; }
-        undoStack.push({"createFile", repo->repoName, temp->name, temp->content});
-        if (prev) prev->next = temp->next; else repo->fileHead = temp->next;
+        if (!temp) { 
+            cout << "File not found.\n"; 
+            return; 
+        }
+        
+        // Save the current state for undo before deleting
+        undoStack.push({"deleteFile", repo->repoName, temp->name, temp->content});
+        
+        // Perform the operation
+        if (prev) 
+            prev->next = temp->next; 
+        else 
+            repo->fileHead = temp->next;
+            
+        // Add to commit history
         commits.addCommit("Deleted File: " + fileName, currentUser);
+        
+        // Delete the file
         delete temp;
         cout << "File deleted successfully.\n";
     }
 
     void editFile(Repository* repo, string fileName, string newContent) {
         File* temp = findFile(repo, fileName);
-        if (!temp) { cout << "File not found.\n"; return; }
-        undoStack.push({"editFile", repo->repoName, fileName, temp->content});
+        if (!temp) { 
+            cout << "File not found.\n"; 
+            return; 
+        }
+        
+        // Save the current state for undo before editing
+        string oldContent = temp->content;
+        undoStack.push({"editFile", repo->repoName, fileName, oldContent});
+        
+        // Perform the operation
         temp->content = newContent;
+        
+        // Add to commit history
         commits.addCommit("Edited File: " + fileName, currentUser);
         cout << "File edited successfully.\n";
     }
@@ -306,26 +338,114 @@ public:
 
     // -------------------- Undo/Redo --------------------
     void undo() {
-        if (undoStack.empty()) { cout << "Nothing to undo.\n"; return; }
-        Operation op = undoStack.top(); undoStack.pop();
+        if (undoStack.empty()) { 
+            cout << "Nothing to undo.\n"; 
+            return; 
+        }
+        
+        // Get the operation to undo
+        Operation op = undoStack.top(); 
+        undoStack.pop();
+        
+        // Push to redo stack before performing the operation
         redoStack.push(op);
-
+        
+        // Find the repository if needed
         Repository* r = findRepo(op.repoName);
-        if (op.type == "deleteRepo") deleteRepository(op.repoName);
-        else if (op.type == "createRepo") createRepository(op.repoName);
-        else if (op.type == "deleteFile" && r) deleteFile(r, op.fileName);
-        else if (op.type == "createFile" && r) createFile(r, op.fileName, op.content);
-        else if (op.type == "editFile" && r) editFile(r, op.fileName, op.content);
-        else if (op.type == "addTask" && r) addTask(r, op.content);
-        else if (op.type == "removeTask" && r) removeTask(r);
-        cout << "Undo performed.\n";
+        
+        // Perform the inverse operation without pushing to undo stack
+        if (op.type == "createFile" && r) {
+            // To undo create, we need to delete the file
+            File* temp = r->fileHead, *prev = NULL;
+            while (temp && temp->name != op.fileName) { prev = temp; temp = temp->next; }
+            if (temp) {
+                if (prev) prev->next = temp->next; 
+                else r->fileHead = temp->next;
+                delete temp;
+                commits.addCommit("Undo: Deleted file " + op.fileName, currentUser);
+            }
+        }
+        else if (op.type == "deleteFile" && r) {
+            // To undo delete, we need to create the file with its content
+            File* newFile = new File(op.fileName, op.content);
+            newFile->next = r->fileHead;
+            r->fileHead = newFile;
+            commits.addCommit("Undo: Restored file " + op.fileName, currentUser);
+        }
+        else if (op.type == "editFile" && r) {
+            // To undo edit, we need to restore the old content
+            File* temp = findFile(r, op.fileName);
+            if (temp) {
+                string currentContent = temp->content;
+                temp->content = op.content;
+                commits.addCommit("Undo: Reverted changes to " + op.fileName, currentUser);
+                // Update the redo stack with the current content for redo
+                redoStack.top().content = currentContent;
+            }
+        }
+        else {
+            // For other operation types, use the original logic
+            if (op.type == "deleteRepo") deleteRepository(op.repoName);
+            else if (op.type == "createRepo") createRepository(op.repoName);
+            else if (op.type == "addTask" && r) addTask(r, op.content);
+            else if (op.type == "removeTask" && r) removeTask(r);
+        }
+        
+        cout << "Undo performed: " << op.type << " on " << op.fileName << "\n";
     }
 
     void redo() {
-        if (redoStack.empty()) { cout << "Nothing to redo.\n"; return; }
-        Operation op = redoStack.top(); redoStack.pop();
+        if (redoStack.empty()) { 
+            cout << "Nothing to redo.\n"; 
+            return; 
+        }
+        
+        // Get the operation to redo
+        Operation op = redoStack.top();
+        redoStack.pop();
+        
+        // Push to undo stack before performing the operation
         undoStack.push(op);
-        cout << "Redo performed. Reapply action: " << op.type << endl;
+        
+        // Find the repository if needed
+        Repository* r = findRepo(op.repoName);
+        
+        // Perform the operation without pushing to redo stack
+        if (op.type == "createFile" && r) {
+            File* newFile = new File(op.fileName, op.content);
+            newFile->next = r->fileHead;
+            r->fileHead = newFile;
+            commits.addCommit("Redo: Created file " + op.fileName, currentUser);
+        }
+        else if (op.type == "deleteFile" && r) {
+            File* temp = r->fileHead, *prev = NULL;
+            while (temp && temp->name != op.fileName) { prev = temp; temp = temp->next; }
+            if (temp) {
+                if (prev) prev->next = temp->next; 
+                else r->fileHead = temp->next;
+                delete temp;
+                commits.addCommit("Redo: Deleted file " + op.fileName, currentUser);
+            }
+        }
+        else if (op.type == "editFile" && r) {
+            File* temp = findFile(r, op.fileName);
+            if (temp) {
+                string oldContent = temp->content;
+                temp->content = op.content;
+                commits.addCommit("Redo: Edited file " + op.fileName, currentUser);
+                // Update the undo stack with the old content for undo
+                undoStack.top().content = oldContent;
+            }
+        }
+        else {
+            // For other operation types, use the original logic
+            if (op.type == "deleteRepo") deleteRepository(op.repoName);
+            else if (op.type == "createRepo") createRepository(op.repoName);
+            else if (op.type == "addTask" && r) addTask(r, op.content);
+            else if (op.type == "removeTask" && r) removeTask(r);
+        }
+        
+        cout << "Redo performed: " << op.type << " on " << op.fileName << "\n";
     }
 
     void showHistory() { commits.showCommits(); }
@@ -425,9 +545,54 @@ public:
     }
 
     // Web API Methods
+    // Get undo and redo stacks as JSON
+    string getStacksJSON() {
+        stringstream json;
+        json << "{\"undoStack\":[";
+        
+        // Create a temporary stack to reverse the order (since stack is LIFO)
+        stack<Operation> tempStack = undoStack;
+        vector<Operation> reversedUndo;
+        while (!tempStack.empty()) {
+            reversedUndo.push_back(tempStack.top());
+            tempStack.pop();
+        }
+        
+        // Add undo stack items in chronological order (oldest first)
+        for (size_t i = reversedUndo.size(); i > 0; i--) {
+            const Operation& op = reversedUndo[i-1];
+            if (i < reversedUndo.size()) json << ",";
+            json << "{\"type\":\"" << op.type 
+                 << "\",\"repoName\":\"" << op.repoName 
+                 << "\",\"fileName\":\"" << op.fileName 
+                 << "\",\"content\":\"" << op.content << "\"}";
+        }
+        
+        json << "],\"redoStack\":[";
+        
+        // Add redo stack items
+        tempStack = redoStack;
+        int count = 0;
+        while (!tempStack.empty()) {
+            Operation op = tempStack.top();
+            tempStack.pop();
+            if (count++ > 0) json << ",";
+            json << "{\"type\":\"" << op.type 
+                 << "\",\"repoName\":\"" << op.repoName 
+                 << "\",\"fileName\":\"" << op.fileName 
+                 << "\",\"content\":\"" << op.content << "\"}";
+        }
+        
+        json << "]}";
+        return json.str();
+    }
+
     string handleRequest(string method, string endpoint, string data = "") {
         if (method == "GET" && endpoint == "/api/repositories") {
             return toJSON();
+        }
+        else if (method == "GET" && endpoint == "/api/undo-redo-stacks") {
+            return getStacksJSON();
         }
         else if (method == "POST" && endpoint == "/api/repositories") {
             // Parse repository name from data (simplified)

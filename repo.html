@@ -22,20 +22,32 @@
         </div>
         <div class="repo-header-right">
             <div class="repo-header-right-buttons">
-                <button class="icon-btn" onclick="performUndo()">
+                <button class="icon-btn" onclick="performUndo()" title="Undo last action">
                     <svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12.5 8c-2.65 0-5.1.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.09 0 5.67 1.93 6.64 4.54l2.25-.89C21.08 11.23 17.15 8 12.5 8z"/>
                     </svg>
                     <span>Undo</span>
+                    <span id="undo-count" class="action-count">0</span>
                 </button>
-                <button class="icon-btn" onclick="performRedo()">
+                <button class="icon-btn" onclick="performRedo()" title="Redo last undone action">
                     <svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                         <path d="M18.42 5.67l.89-2.25C17.15 1.77 13.22-1.4 8.5 2.12v1.88c2.65 0 5.1-.99 6.9-2.6L22 7v9h-9l3.62-3.62c-1.39-1.16-3.16-1.88-5.12-1.88-3.09 0-5.67 1.93-6.64 4.54l-2.25-.89C2.92 11.23 6.85 8 11.5 8z"/>
                     </svg>
                     <span>Redo</span>
+                    <span id="redo-count" class="action-count">0</span>
                 </button>
-                <button onclick="openModal('historyModal')">History</button> 
-                <button onclick="openModal('taskQueueModal')">Tasks</button>
+                <button class="icon-btn" onclick="showHistory()" title="View action history">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+                    </svg>
+                    <span>History</span>
+                </button>
+                <button class="icon-btn" onclick="openModal('taskQueueModal')" title="View tasks">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    <span>Tasks</span>
+                </button>
             </div>
         </div>
     </header>
@@ -167,6 +179,78 @@
         </div>
     </div>
 
+    <!-- History Modal -->
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('historyModal')">&times;</span>
+            <h2>Action History</h2>
+            <div class="history-tabs">
+                <button class="tab-button active" onclick="showHistoryTab('undo-tab')">Undo Stack (<span id="undo-stack-count">0</span>)</button>
+                <button class="tab-button" onclick="showHistoryTab('redo-tab')">Redo Stack (<span id="redo-stack-count">0</span>)</button>
+                <button class="tab-button" onclick="showHistoryTab('commits-tab')">Commits</button>
+            </div>
+            
+            <div id="undo-tab" class="history-tab-content">
+                <div id="undo-stack" class="stack-container">
+                    <div class="empty-state">No actions to undo</div>
+                </div>
+            </div>
+            
+            <div id="redo-tab" class="history-tab-content" style="display: none;">
+                <div id="redo-stack" class="stack-container">
+                    <div class="empty-state">No actions to redo</div>
+                </div>
+            </div>
+            
+            <div id="commits-tab" class="history-tab-content" style="display: none;">
+                <div id="commits-list" class="commits-container">
+                    <div class="empty-state">No commits yet</div>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn" onclick="closeModal('historyModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
+    <script>
+        // Update undo/redo counts when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            updateUndoRedoCounts();
+        });
+
+        // Function to update the undo/redo counts in the UI
+        async function updateUndoRedoCounts() {
+            try {
+                const response = await fetch('/api/undo-redo-stacks');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('undo-count').textContent = data.undoStack ? data.undoStack.length : 0;
+                    document.getElementById('redo-count').textContent = data.redoStack ? data.redoStack.length : 0;
+                }
+            } catch (error) {
+                console.error('Error updating undo/redo counts:', error);
+            }
+        }
+
+        // Function to show a specific tab in the history modal
+        function showHistoryTab(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('.history-tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.history-tabs .tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show the selected tab content and mark the button as active
+            document.getElementById(tabId).style.display = 'block';
+            event.target.classList.add('active');
+        }
+    </script>
 </body>
 </html>

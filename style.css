@@ -18,13 +18,415 @@ header {
     align-items: center;
     padding: 15px 30px;
     border-bottom: 1px solid #30304a;
+    background-color: #161b22;
 }
 
 .logo {
-    display: flex; /* Use flexbox to align logo and text */
+    display: flex;
     align-items: center;
     font-size: 24px;
     font-weight: bold;
+    color: #f0f6fc;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.icon-btn, .history-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #c9d1d9;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.action-count {
+    background-color: #1f6feb;
+    color: white;
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 12px;
+    min-width: 18px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.icon-btn:hover, .history-btn:hover {
+    background: #30363d;
+    border-color: #8b949e;
+}
+
+.icon-btn:active, .history-btn:active {
+    background: #1f6feb;
+    border-color: #1f6feb;
+}
+
+.icon-svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+/* History Modal Styles */
+.history-tabs {
+    display: flex;
+    border-bottom: 1px solid #30363d;
+    margin-bottom: 20px;
+}
+
+.tab-button {
+    background: none;
+    border: none;
+    color: #8b949e;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+    margin-right: 8px;
+}
+
+.tab-button:hover {
+    color: #c9d1d9;
+}
+
+.tab-button.active {
+    color: #58a6ff;
+    border-bottom-color: #58a6ff;
+}
+
+.history-tab-content {
+    margin-top: 16px;
+}
+
+.stack-container, .commits-container {
+    background-color: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.stack-item {
+    background-color: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.stack-item:hover {
+    background-color: #1a1f26;
+    border-color: #30363d;
+}
+
+.stack-item-type {
+    font-weight: 600;
+    color: #58a6ff;
+    margin-right: 8px;
+}
+
+.stack-item-details {
+    color: #8b949e;
+    font-size: 13px;
+    flex-grow: 1;
+}
+
+.stack-item-time {
+    color: #6e7681;
+    font-size: 12px;
+}
+
+.empty-state {
+    color: #6e7681;
+    text-align: center;
+    padding: 20px;
+    font-style: italic;
+}
+
+.commit-item {
+    padding: 12px;
+    border-bottom: 1px solid #21262d;
+}
+
+.commit-message {
+    color: #c9d1d9;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.commit-meta {
+    display: flex;
+    justify-content: space-between;
+    color: #8b949e;
+    font-size: 12px;
+}
+
+.commit-author {
+    color: #58a6ff;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .history-tabs {
+        flex-direction: column;
+        border-bottom: none;
+    }
+    
+    .tab-button {
+        border-bottom: none;
+        border-left: 2px solid transparent;
+        justify-content: flex-start;
+        text-align: left;
+    }
+    
+    .tab-button.active {
+        border-bottom: none;
+        border-left-color: #58a6ff;
+    }
+}
+
+/* Notification Styles */
+.notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 24px;
+    border-radius: 6px;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    opacity: 0.95;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+}
+
+.notification.success {
+    background-color: #2ea043;
+}
+
+.notification.error {
+    background-color: #f85149;
+}
+
+.notification.info {
+    background-color: #1f6feb;
+}
+
+.notification.fade-out {
+    opacity: 0;
+    transform: translateY(-20px);
+}
+
+/* History Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.modal-content {
+    background-color: #0d1117;
+    border-radius: 8px;
+    padding: 24px;
+    width: 100%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    border: 1px solid #30363d;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    color: #c9d1d9;
+}
+
+.history-section {
+    margin-bottom: 24px;
+    background-color: #161b22;
+    border-radius: 6px;
+    padding: 16px;
+    border: 1px solid #30363d;
+}
+
+.history-section h3 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: #f0f6fc;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+}
+
+.history-section h3::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 16px;
+    background-color: #1f6feb;
+    margin-right: 8px;
+    border-radius: 2px;
+}
+
+.stack-container {
+    background-color: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.stack-item {
+    padding: 8px 12px;
+    margin: 4px 0;
+    background-color: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.stack-item:hover {
+    background-color: #161b22;
+}
+
+.stack-item-index {
+    font-weight: 600;
+    color: #7d8590;
+    margin-right: 12px;
+    min-width: 24px;
+    text-align: right;
+}
+
+.stack-item-action {
+    font-weight: 500;
+    color: #f0f6fc;
+    margin-right: 8px;
+    padding: 2px 6px;
+    background-color: #1f6feb;
+    border-radius: 12px;
+    font-size: 12px;
+    text-transform: capitalize;
+}
+
+.stack-item-details {
+    color: #8b949e;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-left: 8px;
+}
+
+.empty-state {
+    color: #8b949e;
+    font-style: italic;
+    text-align: center;
+    padding: 12px;
+    font-size: 14px;
+}
+
+.close-button {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #8b949e;
+    background: none;
+    border: none;
+    padding: 4px;
+    line-height: 1;
+}
+
+.close-button:hover {
+    color: #f0f6fc;
+}
+
+.history-list {
+    margin: 20px 0;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.history-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid #21262d;
+    transition: background-color 0.2s;
+}
+
+.history-item:last-child {
+    border-bottom: none;
+}
+
+.history-item:hover {
+    background-color: #161b22;
+}
+
+.history-message {
+    font-weight: 500;
+    color: #f0f6fc;
+    margin-bottom: 4px;
+}
+
+.history-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #8b949e;
+}
+
+.history-author {
+    font-weight: 600;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.modal-btn {
+    background-color: #21262d;
+    border: 1px solid #30363d;
+    color: #c9d1d9;
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.modal-btn:hover {
+    background-color: #30363d;
+    border-color: #8b949e;
 }
 
 .github-logo-icon {

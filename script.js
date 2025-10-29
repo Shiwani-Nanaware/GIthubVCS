@@ -173,6 +173,176 @@ function loadFromLocalStorage() {
     return false;
 }
 
+// --- Undo/Redo/History Functionality ---
+async function performUndo() {
+    try {
+        const response = await fetch('/api/undo', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to perform undo');
+        }
+        
+        const result = await response.json();
+        if (result.success) {
+            // Reload data after undo
+            await loadDataFromBackend();
+            showNotification('Undo successful', 'success');
+        } else {
+            showNotification(result.message || 'Nothing to undo', 'info');
+        }
+    } catch (error) {
+        console.error('Error performing undo:', error);
+        showNotification('Error performing undo: ' + error.message, 'error');
+    }
+}
+
+async function performRedo() {
+    try {
+        const response = await fetch('/api/redo', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to perform redo');
+        }
+        
+        const result = await response.json();
+        if (result.success) {
+            // Reload data after redo
+            await loadDataFromBackend();
+            showNotification('Redo successful', 'success');
+        } else {
+            showNotification(result.message || 'Nothing to redo', 'info');
+        }
+    } catch (error) {
+        console.error('Error performing redo:', error);
+        showNotification('Error performing redo: ' + error.message, 'error');
+    }
+}
+
+async function showHistory() {
+    try {
+        // Fetch the latest data including undo/redo stacks
+        const [historyResponse, undoRedoResponse] = await Promise.all([
+            fetch('data.json'),
+            fetch('/api/undo-redo-stacks')
+        ]);
+        
+        const data = await historyResponse.json();
+        let undoStack = [];
+        let redoStack = [];
+        
+        try {
+            const undoRedoData = await undoRedoResponse.json();
+            undoStack = undoRedoData.undoStack || [];
+            redoStack = undoRedoData.redoStack || [];
+        } catch (e) {
+            console.warn('Could not fetch undo/redo stacks:', e);
+        }
+        
+        // Create and show history modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 800px;">
+                <span class="close-button" onclick="this.closest('.modal').remove()">&times;</span>
+                <h2>Action History</h2>
+                
+                <div class="history-section">
+                    <h3>Undo Stack (${undoStack.length} action${undoStack.length !== 1 ? 's' : ''})</h3>
+                    <div class="stack-container">
+                        ${undoStack.length > 0 ? 
+                            undoStack.map((action, index) => `
+                                <div class="stack-item">
+                                    <span class="stack-item-index">${undoStack.length - index}.</span>
+                                    <span class="stack-item-action">${action.type}</span>
+                                    <span class="stack-item-details">${action.repoName}${action.fileName ? ' > ' + action.fileName : ''}</span>
+                                </div>
+                            `).join('') : 
+                            '<div class="empty-state">No actions to undo</div>'
+                        }
+                    </div>
+                </div>
+                
+                <div class="history-section">
+                    <h3>Redo Stack (${redoStack.length} action${redoStack.length !== 1 ? 's' : ''})</h3>
+                    <div class="stack-container">
+                        ${redoStack.length > 0 ? 
+                            redoStack.map((action, index) => `
+                                <div class="stack-item">
+                                    <span class="stack-item-index">${index + 1}.</span>
+                                    <span class="stack-item-action">${action.type}</span>
+                                    <span class="stack-item-details">${action.repoName}${action.fileName ? ' > ' + action.fileName : ''}</span>
+                                </div>
+                            `).join('') : 
+                            '<div class="empty-state">No actions to redo</div>'
+                        }
+                    </div>
+                </div>
+                
+                <div class="history-section">
+                    <h3>Commit History</h3>
+                    <div class="history-list">
+                        ${data.repositories.flatMap(repo => 
+                            repo.commits ? 
+                            repo.commits.map(commit => `
+                                <div class="history-item">
+                                    <div class="history-message">${commit.message}</div>
+                                    <div class="history-meta">
+                                        <span class="history-author">${commit.author}</span>
+                                        <span class="history-date">${commit.date}</span>
+                                    </div>
+                                </div>
+                            `).join('') : ''
+                        ).join('')}
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="modal-btn" onclick="this.closest('.modal').remove()">Close</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        modal.style.display = 'flex';
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error loading history:', error);
+        showNotification('Error loading history: ' + error.message, 'error');
+    }
+}
+
+// Helper function to show notifications
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        notification.classList.add('fade-out');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
 // --- Search Functionality ---
 let searchTimeout;
 
@@ -186,12 +356,36 @@ function searchRepositories() {
             return;
         }
         
-        const filteredRepos = repositories.filter(repo => 
-            repo.name.toLowerCase().includes(searchTerm) || 
-            (repo.description && repo.description.toLowerCase().includes(searchTerm))
-        );
-        
-        renderRepositories(filteredRepos);
+        // First try to search using the backend API
+        fetch(`/api/search/repos/${encodeURIComponent(searchTerm)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.results && data.results.length > 0) {
+                    // Filter repositories based on search results from backend
+                    const filteredRepos = repositories.filter(repo => 
+                        data.results.some(result => 
+                            result.toLowerCase() === repo.name.toLowerCase()
+                        )
+                    );
+                    renderRepositories(filteredRepos);
+                } else {
+                    // Fallback to client-side search if no results from backend
+                    const filteredRepos = repositories.filter(repo => 
+                        repo.name.toLowerCase().includes(searchTerm) || 
+                        (repo.description && repo.description.toLowerCase().includes(searchTerm))
+                    );
+                    renderRepositories(filteredRepos);
+                }
+            })
+            .catch(error => {
+                console.error('Error searching repositories:', error);
+                // Fallback to client-side search on error
+                const filteredRepos = repositories.filter(repo => 
+                    repo.name.toLowerCase().includes(searchTerm) || 
+                    (repo.description && repo.description.toLowerCase().includes(searchTerm))
+                );
+                renderRepositories(filteredRepos);
+            });
     }, 300); // 300ms debounce
 }
 
