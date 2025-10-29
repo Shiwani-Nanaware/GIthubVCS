@@ -11,6 +11,12 @@
         <div class="repo-header-left">
             <a href="index.html" class="back-link">&leftarrow;</a>
             <div class="repo-name-text">LeetCode</div>
+            <div class="current-branch-indicator">
+                <svg class="branch-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 2C4.89 2 4 2.89 4 4C4 5.11 4.89 6 6 6C7.11 6 8 5.11 8 4C8 2.89 7.11 2 6 2M4 7V12C4 13.11 4.89 14 6 14C7.11 14 8 13.11 8 12V7H4M18 16C16.89 16 16 16.89 16 18C16 19.11 16.89 20 18 20C19.11 20 20 19.11 20 18C20 16.89 19.11 16 18 16M14 7V12C14 15.31 16.69 18 20 18V16C17.79 16 16 14.21 16 12V7H14Z"/>
+                </svg>
+                <span id="current-branch-name">main</span>
+            </div>
         </div>
         <div class="repo-search-container">
             <div class="search-box">
@@ -55,6 +61,7 @@
             <div class="repo-nav">
                 <button class="nav-btn active" onclick="showSection('files')">Files</button>
                 <button class="nav-btn" onclick="showSection('commits')">Commits</button>
+                <button class="nav-btn" onclick="showSection('branches')">Branches</button>
             </div>
             <div id="files-section" class="content-section active-section">
                 <div class="file-actions">
@@ -67,6 +74,19 @@
             <div id="commits-section" class="content-section">
                 <div class="commit-list-container">
                     </div>
+            </div>
+            <div id="branches-section" class="content-section">
+                <div class="branch-actions">
+                    <button class="create-branch-btn" onclick="openModal('createBranchModal')">+ Create Branch</button>
+                    <div class="branch-controls">
+                        <select id="branchSwitchSelect" onchange="switchToBranch(this.value)">
+                            <option value="">Switch Branch...</option>
+                        </select>
+                        <button class="merge-branch-btn" onclick="openModal('mergeBranchModal')">Merge Branch</button>
+                    </div>
+                </div>
+                <div id="branchListContainer" class="branch-list-container">
+                </div>
             </div>
         </section>
     </main>
@@ -173,6 +193,45 @@
             <div class="modal-actions-group">
                 <button class="modal-cancel-btn" onclick="closeModal('viewFileModal')">Close</button>
                 <button class="modal-action-btn" onclick="openEditFileModal(document.getElementById('viewFileName').textContent); closeModal('viewFileModal');">Edit File</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Branch Management Modals -->
+    <div id="createBranchModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('createBranchModal')">&times;</span>
+            <h2>Create New Branch</h2>
+            <p>Create a new branch from an existing branch</p>
+            <label for="baseBranchSelect">Base Branch</label>
+            <select id="baseBranchSelect">
+                <option value="main">main</option>
+            </select>
+            <label for="newBranchName">New Branch Name</label>
+            <input type="text" id="newBranchName" placeholder="feature/new-feature">
+            <div class="modal-actions-group">
+                <button class="modal-cancel-btn" onclick="closeModal('createBranchModal')">Cancel</button>
+                <button class="modal-action-btn" onclick="createNewBranch()">Create Branch</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mergeBranchModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('mergeBranchModal')">&times;</span>
+            <h2>Merge Branch</h2>
+            <p>Merge one branch into another</p>
+            <label for="sourceBranchSelect">Source Branch (merge from)</label>
+            <select id="sourceBranchSelect">
+                <option value="">Select source branch...</option>
+            </select>
+            <label for="targetBranchSelect">Target Branch (merge into)</label>
+            <select id="targetBranchSelect">
+                <option value="">Select target branch...</option>
+            </select>
+            <div class="modal-actions-group">
+                <button class="modal-cancel-btn" onclick="closeModal('mergeBranchModal')">Cancel</button>
+                <button class="modal-action-btn" onclick="mergeBranches()">Merge Branches</button>
             </div>
         </div>
     </div>

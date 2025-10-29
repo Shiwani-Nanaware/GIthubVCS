@@ -438,8 +438,23 @@ function renderRepoPageContent() {
     const params = new URLSearchParams(window.location.search);
     currentRepoName = params.get('repo');
     if (currentRepoName) {
-        document.querySelector('.repo-name-text').textContent = decodeURIComponent(currentRepoName);
-        document.querySelector('.repo-description-text').textContent = repositories.find(r => r.name === currentRepoName).description;
+        const repo = repositories.find(r => r.name === currentRepoName);
+        if (repo) {
+            document.querySelector('.repo-name-text').textContent = decodeURIComponent(currentRepoName);
+            document.querySelector('.repo-description-text').textContent = repo.description;
+            
+            // Update current branch indicator
+            const currentBranchElement = document.getElementById('current-branch-name');
+            if (currentBranchElement) {
+                currentBranchElement.textContent = repo.currentBranch || 'main';
+            }
+            
+            // Initialize branches if not present
+            if (!repo.branches) {
+                repo.branches = [{ name: 'main', parent: '', current: true }];
+                repo.currentBranch = 'main';
+            }
+        }
         showSection('files');
     }
 }
@@ -461,6 +476,8 @@ function showSection(sectionId) {
             renderFiles(currentRepo.files);
         } else if (sectionId === 'commits') {
             renderCommits(currentRepo.commits);
+        } else if (sectionId === 'branches') {
+            renderBranches(currentRepo);
         }
     }
 }
@@ -1072,6 +1089,226 @@ function viewFileContent(fileName) {
     } else {
         alert('File not found');
     }
+}
+
+// -------------------- Branch Management Functions --------------------
+function renderBranches(repo) {
+    const branchContainer = document.getElementById('branchListContainer');
+    const branchSwitchSelect = document.getElementById('branchSwitchSelect');
+    const baseBranchSelect = document.getElementById('baseBranchSelect');
+    const sourceBranchSelect = document.getElementById('sourceBranchSelect');
+    const targetBranchSelect = document.getElementById('targetBranchSelect');
+    
+    if (!repo.branches) {
+        repo.branches = [{ name: 'main', parent: '', current: true }];
+        repo.currentBranch = 'main';
+    }
+    
+    // Update current branch indicator
+    const currentBranchElement = document.getElementById('current-branch-name');
+    if (currentBranchElement) {
+        currentBranchElement.textContent = repo.currentBranch || 'main';
+    }
+    
+    // Render branch list
+    branchContainer.innerHTML = '';
+    if (repo.branches.length === 0) {
+        branchContainer.innerHTML = '<div class="no-branches-message">No branches found</div>';
+        return;
+    }
+    
+    repo.branches.forEach(branch => {
+        const branchItem = document.createElement('div');
+        branchItem.className = `branch-item ${branch.current ? 'current-branch' : ''}`;
+        branchItem.innerHTML = `
+            <div class="branch-info">
+                <div class="branch-name">
+                    <svg class="branch-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6 2C4.89 2 4 2.89 4 4C4 5.11 4.89 6 6 6C7.11 6 8 5.11 8 4C8 2.89 7.11 2 6 2M4 7V12C4 13.11 4.89 14 6 14C7.11 14 8 13.11 8 12V7H4M18 16C16.89 16 16 16.89 16 18C16 19.11 16.89 20 18 20C19.11 20 20 19.11 20 18C20 16.89 19.11 16 18 16M14 7V12C14 15.31 16.69 18 20 18V16C17.79 16 16 14.21 16 12V7H14Z"/>
+                    </svg>
+                    ${branch.name}
+                    ${branch.current ? '<span class="current-indicator">current</span>' : ''}
+                </div>
+                ${branch.parent ? `<div class="branch-parent">from ${branch.parent}</div>` : ''}
+            </div>
+            <div class="branch-actions">
+                ${!branch.current ? `<button class="switch-branch-btn" onclick="switchToBranch('${branch.name}')">Switch</button>` : ''}
+                ${branch.name !== 'main' ? `<button class="delete-branch-btn" onclick="deleteBranch('${branch.name}')">Delete</button>` : ''}
+            </div>
+        `;
+        branchContainer.appendChild(branchItem);
+    });
+    
+    // Update select dropdowns
+    updateBranchSelects(repo.branches);
+}
+
+function updateBranchSelects(branches) {
+    const selects = [
+        document.getElementById('branchSwitchSelect'),
+        document.getElementById('baseBranchSelect'),
+        document.getElementById('sourceBranchSelect'),
+        document.getElementById('targetBranchSelect')
+    ];
+    
+    selects.forEach(select => {
+        if (!select) return;
+        
+        // Clear existing options (except first one for switch select)
+        const isSwitch = select.id === 'branchSwitchSelect';
+        const firstOption = isSwitch ? select.firstElementChild : null;
+        select.innerHTML = '';
+        if (firstOption) select.appendChild(firstOption);
+        
+        // Add branch options
+        branches.forEach(branch => {
+            const option = document.createElement('option');
+            option.value = branch.name;
+            option.textContent = branch.name;
+            select.appendChild(option);
+        });
+    });
+}
+
+async function createNewBranch() {
+    const baseBranch = document.getElementById('baseBranchSelect').value;
+    const newBranchName = document.getElementById('newBranchName').value.trim();
+    
+    if (!newBranchName) {
+        alert('Branch name is required');
+        return;
+    }
+    
+    const currentRepo = repositories.find(r => r.name === currentRepoName);
+    if (!currentRepo) return;
+    
+    // Check if branch already exists
+    if (currentRepo.branches && currentRepo.branches.find(b => b.name === newBranchName)) {
+        alert('Branch already exists!');
+        return;
+    }
+    
+    // Save state for undo
+    saveStateForUndo('CREATE_BRANCH', `Created branch: ${newBranchName} from ${baseBranch}`);
+    
+    // Add new branch
+    if (!currentRepo.branches) {
+        currentRepo.branches = [{ name: 'main', parent: '', current: true }];
+    }
+    
+    currentRepo.branches.push({
+        name: newBranchName,
+        parent: baseBranch,
+        current: false
+    });
+    
+    // Call backend API
+    try {
+        await callBackendAPI('POST', `/api/repositories/${currentRepoName}/branches`, 
+            `baseBranch=${baseBranch}&newBranch=${newBranchName}`);
+    } catch (error) {
+        console.error('Error creating branch:', error);
+    }
+    
+    closeModal('createBranchModal');
+    showSection('branches');
+    
+    // Clear form
+    document.getElementById('newBranchName').value = '';
+    
+    showNotification(`Branch '${newBranchName}' created from '${baseBranch}'`, 'success');
+}
+
+async function switchToBranch(branchName) {
+    if (!branchName) return;
+    
+    const currentRepo = repositories.find(r => r.name === currentRepoName);
+    if (!currentRepo || !currentRepo.branches) return;
+    
+    // Update current branch
+    currentRepo.branches.forEach(branch => {
+        branch.current = branch.name === branchName;
+    });
+    currentRepo.currentBranch = branchName;
+    
+    // Save state for undo
+    saveStateForUndo('SWITCH_BRANCH', `Switched to branch: ${branchName}`);
+    
+    // Call backend API
+    try {
+        await callBackendAPI('PUT', `/api/repositories/${currentRepoName}/branches/switch`, 
+            `branchName=${branchName}`);
+    } catch (error) {
+        console.error('Error switching branch:', error);
+    }
+    
+    // Update UI
+    document.getElementById('current-branch-name').textContent = branchName;
+    document.getElementById('branchSwitchSelect').value = '';
+    
+    // Refresh current section
+    showSection('files'); // Switch back to files view
+    
+    showNotification(`Switched to branch '${branchName}'`, 'success');
+}
+
+async function mergeBranches() {
+    const sourceBranch = document.getElementById('sourceBranchSelect').value;
+    const targetBranch = document.getElementById('targetBranchSelect').value;
+    
+    if (!sourceBranch || !targetBranch) {
+        alert('Please select both source and target branches');
+        return;
+    }
+    
+    if (sourceBranch === targetBranch) {
+        alert('Source and target branches cannot be the same');
+        return;
+    }
+    
+    // Save state for undo
+    saveStateForUndo('MERGE_BRANCH', `Merged ${sourceBranch} into ${targetBranch}`);
+    
+    // Call backend API
+    try {
+        await callBackendAPI('POST', `/api/repositories/${currentRepoName}/branches/merge`, 
+            `sourceBranch=${sourceBranch}&targetBranch=${targetBranch}`);
+    } catch (error) {
+        console.error('Error merging branches:', error);
+    }
+    
+    closeModal('mergeBranchModal');
+    showSection('branches');
+    
+    showNotification(`Successfully merged '${sourceBranch}' into '${targetBranch}'`, 'success');
+}
+
+async function deleteBranch(branchName) {
+    if (branchName === 'main') {
+        alert('Cannot delete main branch');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete branch '${branchName}'?`)) {
+        return;
+    }
+    
+    const currentRepo = repositories.find(r => r.name === currentRepoName);
+    if (!currentRepo || !currentRepo.branches) return;
+    
+    // Save state for undo
+    saveStateForUndo('DELETE_BRANCH', `Deleted branch: ${branchName}`);
+    
+    // Remove branch
+    currentRepo.branches = currentRepo.branches.filter(b => b.name !== branchName);
+    
+    // If current branch was deleted, switch to main
+    if (currentRepo.currentBranch === branchName) {
+        await switchToBranch('main');
+    }
+    
+    showSection('branches');
+    showNotification(`Branch '${branchName}' deleted`, 'success');
 }
 
 

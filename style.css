@@ -1262,4 +1262,187 @@ input:checked + .slider:before {
     .file-content-viewer {
         max-height: 250px;
     }
+}/* Branch M
+anagement Styles */
+.current-branch-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 16px;
+    padding: 4px 12px;
+    background: rgba(56, 139, 253, 0.1);
+    border: 1px solid rgba(56, 139, 253, 0.3);
+    border-radius: 16px;
+    font-size: 14px;
+    color: #58a6ff;
+}
+
+.branch-icon {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+
+.branch-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    align-items: center;
+}
+
+.create-branch-btn {
+    background: #238636;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.create-branch-btn:hover {
+    background: #2ea043;
+}
+
+.branch-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.branch-controls select {
+    background: #21262d;
+    color: #f0f6fc;
+    border: 1px solid #30363d;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    min-width: 150px;
+}
+
+.merge-branch-btn {
+    background: #1f6feb;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.merge-branch-btn:hover {
+    background: #388bfd;
+}
+
+.branch-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.branch-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    transition: border-color 0.2s;
+}
+
+.branch-item:hover {
+    border-color: #58a6ff;
+}
+
+.branch-item.current-branch {
+    border-color: #238636;
+    background: rgba(35, 134, 54, 0.1);
+}
+
+.branch-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.branch-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    color: #f0f6fc;
+}
+
+.current-indicator {
+    background: #238636;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.branch-parent {
+    font-size: 14px;
+    color: #8b949e;
+}
+
+.branch-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.switch-branch-btn {
+    background: #1f6feb;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.switch-branch-btn:hover {
+    background: #388bfd;
+}
+
+.delete-branch-btn {
+    background: #da3633;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.delete-branch-btn:hover {
+    background: #f85149;
+}
+
+.no-branches-message {
+    text-align: center;
+    color: #8b949e;
+    padding: 40px;
+    font-style: italic;
+}
+
+/* Branch Modal Styles */
+.modal-content select {
+    background: #21262d;
+    color: #f0f6fc;
+    border: 1px solid #30363d;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    width: 100%;
+    margin-bottom: 16px;
+}
+
+.modal-content select:focus {
+    outline: none;
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
 }

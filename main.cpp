@@ -6,6 +6,8 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>  // For transform function
+#include <map>
+#include <vector>
 using namespace std;
 
 // -------------------- Commit History --------------------
@@ -167,12 +169,158 @@ struct File {
     File(string n, string c) : name(n), content(c), next(NULL) {}
 };
 
+// -------------------- Branch Management System --------------------
+struct Branch {
+    string branchName;
+    string parentBranch;
+    File* fileHead;
+    CommitHistory commits;
+    Branch* left;
+    Branch* right;
+    Branch* parent;
+    vector<Branch*> children;
+    
+    Branch(string name, string parent = "") : branchName(name), parentBranch(parent), 
+           fileHead(NULL), left(NULL), right(NULL), parent(NULL) {}
+    
+    // Deep copy files from another branch
+    void copyFilesFrom(Branch* source) {
+        if (!source || !source->fileHead) return;
+        
+        File* sourceFile = source->fileHead;
+        File* prevFile = NULL;
+        
+        while (sourceFile) {
+            File* newFile = new File(sourceFile->name, sourceFile->content);
+            if (!fileHead) {
+                fileHead = newFile;
+            } else {
+                prevFile->next = newFile;
+            }
+            prevFile = newFile;
+            sourceFile = sourceFile->next;
+        }
+    }
+};
+
+struct BranchManager {
+    Branch* root;
+    map<string, Branch*> branchMap;
+    string currentBranch;
+    
+    BranchManager() : root(NULL), currentBranch("main") {
+        // Create main branch
+        root = new Branch("main");
+        branchMap["main"] = root;
+    }
+    
+    bool createBranch(string baseBranch, string newBranch) {
+        if (branchMap.find(newBranch) != branchMap.end()) {
+            return false; // Branch already exists
+        }
+        
+        Branch* base = branchMap[baseBranch];
+        if (!base) return false;
+        
+        Branch* newBr = new Branch(newBranch, baseBranch);
+        newBr->copyFilesFrom(base);
+        newBr->parent = base;
+        base->children.push_back(newBr);
+        branchMap[newBranch] = newBr;
+        
+        return true;
+    }
+    
+    bool switchBranch(string branchName) {
+        if (branchMap.find(branchName) == branchMap.end()) {
+            return false;
+        }
+        currentBranch = branchName;
+        return true;
+    }
+    
+    Branch* getCurrentBranch() {
+        return branchMap[currentBranch];
+    }
+    
+    vector<string> listBranches() {
+        vector<string> branches;
+        for (auto& pair : branchMap) {
+            branches.push_back(pair.first);
+        }
+        return branches;
+    }
+    
+    bool mergeBranch(string sourceBranch, string targetBranch) {
+        Branch* source = branchMap[sourceBranch];
+        Branch* target = branchMap[targetBranch];
+        
+        if (!source || !target) return false;
+        
+        // Simple merge: copy files from source to target
+        File* sourceFile = source->fileHead;
+        while (sourceFile) {
+            // Check if file exists in target
+            File* targetFile = target->fileHead;
+            bool found = false;
+            while (targetFile) {
+                if (targetFile->name == sourceFile->name) {
+                    // File exists, update content
+                    targetFile->content = sourceFile->content;
+                    found = true;
+                    break;
+                }
+                targetFile = targetFile->next;
+            }
+            
+            if (!found) {
+                // File doesn't exist, add it
+                File* newFile = new File(sourceFile->name, sourceFile->content);
+                newFile->next = target->fileHead;
+                target->fileHead = newFile;
+            }
+            
+            sourceFile = sourceFile->next;
+        }
+        
+        target->commits.addCommit("Merged branch " + sourceBranch + " into " + targetBranch, "System");
+        return true;
+    }
+    
+    string getBranchesJSON() {
+        stringstream json;
+        json << "{\"branches\":[";
+        bool first = true;
+        for (auto& pair : branchMap) {
+            if (!first) json << ",";
+            json << "{\"name\":\"" << pair.first 
+                 << "\",\"parent\":\"" << pair.second->parentBranch 
+                 << "\",\"current\":" << (pair.first == currentBranch ? "true" : "false") << "}";
+            first = false;
+        }
+        json << "],\"currentBranch\":\"" << currentBranch << "\"}";
+        return json.str();
+    }
+};
+
 struct Repository {
     string repoName;
-    File* fileHead;
+    BranchManager branchManager;
     queue<string> tasks;
     Repository* next;
-    Repository(string n) : repoName(n), fileHead(NULL), next(NULL) {}
+    Repository(string n) : repoName(n), next(NULL) {}
+    
+    File* getCurrentFiles() {
+        Branch* current = branchManager.getCurrentBranch();
+        return current ? current->fileHead : NULL;
+    }
+    
+    void setCurrentFiles(File* files) {
+        Branch* current = branchManager.getCurrentBranch();
+        if (current) {
+            current->fileHead = files;
+        }
+    }
 };
 
 // -------------------- Operation Struct for Undo/Redo --------------------
@@ -204,7 +352,7 @@ public:
     }
 
     File* findFile(Repository* repo, string name) {
-        File* temp = repo->fileHead;
+        File* temp = repo->getCurrentFiles();
         while (temp) {
             if (temp->name == name) return temp;
             temp = temp->next;
@@ -253,16 +401,21 @@ public:
         
         // Perform the operation
         File* newFile = new File(fileName, content);
-        newFile->next = repo->fileHead;
-        repo->fileHead = newFile;
+        File* currentFiles = repo->getCurrentFiles();
+        newFile->next = currentFiles;
+        repo->setCurrentFiles(newFile);
         
-        // Add to commit history
-        commits.addCommit("Created File: " + fileName, currentUser);
-        cout << "File created successfully.\n";
+        // Add to commit history for current branch
+        Branch* currentBranch = repo->branchManager.getCurrentBranch();
+        if (currentBranch) {
+            currentBranch->commits.addCommit("Created File: " + fileName, currentUser);
+        }
+        commits.addCommit("Created File: " + fileName + " in branch " + repo->branchManager.currentBranch, currentUser);
+        cout << "File created successfully in branch " << repo->branchManager.currentBranch << ".\n";
     }
 
     void deleteFile(Repository* repo, string fileName) {
-        File* temp = repo->fileHead, *prev = NULL;
+        File* temp = repo->getCurrentFiles(), *prev = NULL;
         while (temp && temp->name != fileName) { prev = temp; temp = temp->next; }
         if (!temp) { 
             cout << "File not found.\n"; 
@@ -276,14 +429,18 @@ public:
         if (prev) 
             prev->next = temp->next; 
         else 
-            repo->fileHead = temp->next;
+            repo->setCurrentFiles(temp->next);
             
-        // Add to commit history
-        commits.addCommit("Deleted File: " + fileName, currentUser);
+        // Add to commit history for current branch
+        Branch* currentBranch = repo->branchManager.getCurrentBranch();
+        if (currentBranch) {
+            currentBranch->commits.addCommit("Deleted File: " + fileName, currentUser);
+        }
+        commits.addCommit("Deleted File: " + fileName + " in branch " + repo->branchManager.currentBranch, currentUser);
         
         // Delete the file
         delete temp;
-        cout << "File deleted successfully.\n";
+        cout << "File deleted successfully from branch " << repo->branchManager.currentBranch << ".\n";
     }
 
     void editFile(Repository* repo, string fileName, string newContent) {
@@ -300,16 +457,64 @@ public:
         // Perform the operation
         temp->content = newContent;
         
-        // Add to commit history
-        commits.addCommit("Edited File: " + fileName, currentUser);
-        cout << "File edited successfully.\n";
+        // Add to commit history for current branch
+        Branch* currentBranch = repo->branchManager.getCurrentBranch();
+        if (currentBranch) {
+            currentBranch->commits.addCommit("Edited File: " + fileName, currentUser);
+        }
+        commits.addCommit("Edited File: " + fileName + " in branch " + repo->branchManager.currentBranch, currentUser);
+        cout << "File edited successfully in branch " << repo->branchManager.currentBranch << ".\n";
     }
 
     void showFiles(Repository* repo) {
-        if (!repo->fileHead) { cout << "No files.\n"; return; }
-        File* temp = repo->fileHead;
-        cout << "\nFiles in " << repo->repoName << ":\n";
+        File* files = repo->getCurrentFiles();
+        if (!files) { 
+            cout << "No files in branch " << repo->branchManager.currentBranch << ".\n"; 
+            return; 
+        }
+        File* temp = files;
+        cout << "\nFiles in " << repo->repoName << " (branch: " << repo->branchManager.currentBranch << "):\n";
         while (temp) { cout << "- " << temp->name << endl; temp = temp->next; }
+    }
+
+    // -------------------- Branch Operations --------------------
+    void createBranch(Repository* repo, string baseBranch, string newBranch) {
+        if (repo->branchManager.createBranch(baseBranch, newBranch)) {
+            commits.addCommit("Created branch: " + newBranch + " from " + baseBranch, currentUser);
+            cout << "Branch '" << newBranch << "' created from '" << baseBranch << "'.\n";
+        } else {
+            cout << "Failed to create branch. Branch may already exist or base branch not found.\n";
+        }
+    }
+    
+    void switchBranch(Repository* repo, string branchName) {
+        if (repo->branchManager.switchBranch(branchName)) {
+            commits.addCommit("Switched to branch: " + branchName, currentUser);
+            cout << "Switched to branch '" << branchName << "'.\n";
+        } else {
+            cout << "Branch '" << branchName << "' not found.\n";
+        }
+    }
+    
+    void mergeBranch(Repository* repo, string sourceBranch, string targetBranch) {
+        if (repo->branchManager.mergeBranch(sourceBranch, targetBranch)) {
+            commits.addCommit("Merged branch " + sourceBranch + " into " + targetBranch, currentUser);
+            cout << "Successfully merged '" << sourceBranch << "' into '" << targetBranch << "'.\n";
+        } else {
+            cout << "Failed to merge branches. One or both branches may not exist.\n";
+        }
+    }
+    
+    void listBranches(Repository* repo) {
+        vector<string> branches = repo->branchManager.listBranches();
+        cout << "\nBranches in " << repo->repoName << ":\n";
+        for (const string& branch : branches) {
+            if (branch == repo->branchManager.currentBranch) {
+                cout << "* " << branch << " (current)\n";
+            } else {
+                cout << "  " << branch << "\n";
+            }
+        }
     }
 
     // -------------------- Task Operations --------------------
@@ -356,11 +561,11 @@ public:
         // Perform the inverse operation without pushing to undo stack
         if (op.type == "createFile" && r) {
             // To undo create, we need to delete the file
-            File* temp = r->fileHead, *prev = NULL;
+            File* temp = r->getCurrentFiles(), *prev = NULL;
             while (temp && temp->name != op.fileName) { prev = temp; temp = temp->next; }
             if (temp) {
                 if (prev) prev->next = temp->next; 
-                else r->fileHead = temp->next;
+                else r->setCurrentFiles(temp->next);
                 delete temp;
                 commits.addCommit("Undo: Deleted file " + op.fileName, currentUser);
             }
@@ -368,8 +573,9 @@ public:
         else if (op.type == "deleteFile" && r) {
             // To undo delete, we need to create the file with its content
             File* newFile = new File(op.fileName, op.content);
-            newFile->next = r->fileHead;
-            r->fileHead = newFile;
+            File* currentFiles = r->getCurrentFiles();
+            newFile->next = currentFiles;
+            r->setCurrentFiles(newFile);
             commits.addCommit("Undo: Restored file " + op.fileName, currentUser);
         }
         else if (op.type == "editFile" && r) {
@@ -413,16 +619,17 @@ public:
         // Perform the operation without pushing to redo stack
         if (op.type == "createFile" && r) {
             File* newFile = new File(op.fileName, op.content);
-            newFile->next = r->fileHead;
-            r->fileHead = newFile;
+            File* currentFiles = r->getCurrentFiles();
+            newFile->next = currentFiles;
+            r->setCurrentFiles(newFile);
             commits.addCommit("Redo: Created file " + op.fileName, currentUser);
         }
         else if (op.type == "deleteFile" && r) {
-            File* temp = r->fileHead, *prev = NULL;
+            File* temp = r->getCurrentFiles(), *prev = NULL;
             while (temp && temp->name != op.fileName) { prev = temp; temp = temp->next; }
             if (temp) {
                 if (prev) prev->next = temp->next; 
-                else r->fileHead = temp->next;
+                else r->setCurrentFiles(temp->next);
                 delete temp;
                 commits.addCommit("Redo: Deleted file " + op.fileName, currentUser);
             }
@@ -461,7 +668,7 @@ public:
         vector<string> results;
         if (!repo) return results;
         
-        File* current = repo->fileHead;
+        File* current = repo->getCurrentFiles();
         while (current) {
             if (searchContent) {
                 // Search in file content
@@ -497,13 +704,34 @@ public:
         bool first = true;
         while (temp) {
             if (!first) json << ",";
-            json << "{\"name\":\"" << temp->repoName << "\",\"description\":\"Repository\",\"createdDate\":\"" << getCurrentDate() << "\",\"isPrivate\":false,\"files\":[";
+            json << "{\"name\":\"" << temp->repoName 
+                 << "\",\"description\":\"Repository\",\"createdDate\":\"" << getCurrentDate() 
+                 << "\",\"isPrivate\":false,\"currentBranch\":\"" << temp->branchManager.currentBranch 
+                 << "\",\"branches\":" << temp->branchManager.getBranchesJSON().substr(1, temp->branchManager.getBranchesJSON().length()-2) // Remove outer braces
+                 << ",\"files\":[";
             
-            File* fileTemp = temp->fileHead;
+            File* fileTemp = temp->getCurrentFiles();
             bool firstFile = true;
             while (fileTemp) {
                 if (!firstFile) json << ",";
-                json << "{\"name\":\"" << fileTemp->name << "\",\"info\":\"" << fileTemp->content.substr(0, 50) << "\",\"date\":\"a few seconds ago\"}";
+                json << "{\"name\":\"" << fileTemp->name 
+                     << "\",\"info\":\"" << (fileTemp->content.length() > 50 ? fileTemp->content.substr(0, 50) + "..." : fileTemp->content)
+                     << "\",\"date\":\"a few seconds ago\",\"content\":\"";
+                
+                // Escape quotes and newlines in content
+                string escapedContent = fileTemp->content;
+                size_t pos = 0;
+                while ((pos = escapedContent.find("\"", pos)) != string::npos) {
+                    escapedContent.replace(pos, 1, "\\\"");
+                    pos += 2;
+                }
+                pos = 0;
+                while ((pos = escapedContent.find("\n", pos)) != string::npos) {
+                    escapedContent.replace(pos, 1, "\\n");
+                    pos += 2;
+                }
+                
+                json << escapedContent << "\"}";
                 fileTemp = fileTemp->next;
                 firstFile = false;
             }
@@ -642,6 +870,76 @@ public:
             saveToFile();
             return "{\"success\":true,\"message\":\"Redo performed\"}";
         }
+        // Branch management endpoints
+        else if (method == "POST" && endpoint.find("/api/repositories/") == 0 && endpoint.find("/branches") != string::npos) {
+            // Extract repo name
+            size_t start = 17; // "/api/repositories/"
+            size_t end = endpoint.find("/branches");
+            string repoName = endpoint.substr(start, end - start);
+            Repository* repo = findRepo(repoName);
+            
+            if (repo) {
+                // Parse branch data (format: baseBranch=main&newBranch=feature)
+                size_t basePos = data.find("baseBranch=");
+                size_t newPos = data.find("newBranch=");
+                if (basePos != string::npos && newPos != string::npos) {
+                    string baseBranch = data.substr(basePos + 11, data.find("&", basePos) - basePos - 11);
+                    string newBranch = data.substr(newPos + 10);
+                    createBranch(repo, baseBranch, newBranch);
+                    saveToFile();
+                    return "{\"success\":true,\"message\":\"Branch created\"}";
+                }
+            }
+        }
+        else if (method == "PUT" && endpoint.find("/api/repositories/") == 0 && endpoint.find("/branches/switch") != string::npos) {
+            // Extract repo name
+            size_t start = 17; // "/api/repositories/"
+            size_t end = endpoint.find("/branches");
+            string repoName = endpoint.substr(start, end - start);
+            Repository* repo = findRepo(repoName);
+            
+            if (repo) {
+                // Parse branch name (format: branchName=main)
+                size_t pos = data.find("branchName=");
+                if (pos != string::npos) {
+                    string branchName = data.substr(pos + 11);
+                    switchBranch(repo, branchName);
+                    saveToFile();
+                    return "{\"success\":true,\"message\":\"Branch switched\"}";
+                }
+            }
+        }
+        else if (method == "POST" && endpoint.find("/api/repositories/") == 0 && endpoint.find("/branches/merge") != string::npos) {
+            // Extract repo name
+            size_t start = 17; // "/api/repositories/"
+            size_t end = endpoint.find("/branches");
+            string repoName = endpoint.substr(start, end - start);
+            Repository* repo = findRepo(repoName);
+            
+            if (repo) {
+                // Parse merge data (format: sourceBranch=feature&targetBranch=main)
+                size_t sourcePos = data.find("sourceBranch=");
+                size_t targetPos = data.find("targetBranch=");
+                if (sourcePos != string::npos && targetPos != string::npos) {
+                    string sourceBranch = data.substr(sourcePos + 13, data.find("&", sourcePos) - sourcePos - 13);
+                    string targetBranch = data.substr(targetPos + 13);
+                    mergeBranch(repo, sourceBranch, targetBranch);
+                    saveToFile();
+                    return "{\"success\":true,\"message\":\"Branch merged\"}";
+                }
+            }
+        }
+        else if (method == "GET" && endpoint.find("/api/repositories/") == 0 && endpoint.find("/branches") != string::npos) {
+            // Extract repo name
+            size_t start = 17; // "/api/repositories/"
+            size_t end = endpoint.find("/branches");
+            string repoName = endpoint.substr(start, end - start);
+            Repository* repo = findRepo(repoName);
+            
+            if (repo) {
+                return repo->branchManager.getBranchesJSON();
+            }
+        }
         // Search endpoints
         else if (method == "GET" && endpoint.find("/api/search/repos/") == 0) {
             string term = endpoint.substr(18); // Remove "/api/search/repos/"
@@ -747,9 +1045,10 @@ int main() {
 
             int sub;
             do {
-                cout << "\n--- Manage " << repoName << " ---\n";
+                cout << "\n--- Manage " << repoName << " (Current Branch: " << repo->branchManager.currentBranch << ") ---\n";
                 cout << "1. Create File\n2. Edit File\n3. Delete File\n4. Show Files\n";
-                cout << "5. Add Task\n6. Remove Task\n7. View Tasks\n8. Undo\n9. Redo\n10. Back\nEnter: ";
+                cout << "5. Add Task\n6. Remove Task\n7. View Tasks\n8. Undo\n9. Redo\n";
+                cout << "10. Create Branch\n11. Switch Branch\n12. Merge Branch\n13. List Branches\n14. Back\nEnter: ";
                 cin >> sub; cin.ignore();
                 switch(sub) {
                     case 1: cout << "File name: "; getline(cin, fileName);
@@ -767,8 +1066,29 @@ int main() {
                     case 7: git.viewTasks(repo); break;
                     case 8: git.undo(); break;
                     case 9: git.redo(); break;
+                    case 10: {
+                        string baseBranch, newBranch;
+                        cout << "Base branch: "; getline(cin, baseBranch);
+                        cout << "New branch name: "; getline(cin, newBranch);
+                        git.createBranch(repo, baseBranch, newBranch);
+                        break;
+                    }
+                    case 11: {
+                        string branchName;
+                        cout << "Branch to switch to: "; getline(cin, branchName);
+                        git.switchBranch(repo, branchName);
+                        break;
+                    }
+                    case 12: {
+                        string sourceBranch, targetBranch;
+                        cout << "Source branch: "; getline(cin, sourceBranch);
+                        cout << "Target branch: "; getline(cin, targetBranch);
+                        git.mergeBranch(repo, sourceBranch, targetBranch);
+                        break;
+                    }
+                    case 13: git.listBranches(repo); break;
                 }
-            } while(sub != 10);
+            } while(sub != 14);
             break;
         }
         case 5: git.undo(); break;
