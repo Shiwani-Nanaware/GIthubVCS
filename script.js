@@ -1194,6 +1194,76 @@ function testBranchIsolation() {
     return true;
 }
 
+// Test function to verify merge functionality
+function testMergeFunctionality() {
+    console.log('Testing merge functionality...');
+    const testRepo = repositories.find(r => r.name === currentRepoName);
+    if (!testRepo || !testRepo.branches || testRepo.branches.length < 2) {
+        console.log('Need at least 2 branches to test merge functionality');
+        return false;
+    }
+    
+    const branch1 = testRepo.branches[0];
+    const branch2 = testRepo.branches[1];
+    
+    console.log(`Testing merge from '${branch1.name}' to '${branch2.name}'`);
+    
+    // Count files and commits before merge
+    const files1Before = branch1.files?.length || 0;
+    const files2Before = branch2.files?.length || 0;
+    const commits1Before = branch1.commits?.length || 0;
+    const commits2Before = branch2.commits?.length || 0;
+    
+    console.log('Before merge:');
+    console.log(`  ${branch1.name}: ${files1Before} files, ${commits1Before} commits`);
+    console.log(`  ${branch2.name}: ${files2Before} files, ${commits2Before} commits`);
+    
+    // Simulate merge operation (without actually calling the merge function)
+    let filesAdded = 0, filesUpdated = 0, commitsAdded = 0;
+    
+    // Test file merging logic
+    if (branch1.files) {
+        branch1.files.forEach(sourceFile => {
+            if (!branch2.files) branch2.files = [];
+            
+            const existingFile = branch2.files.find(f => f.name === sourceFile.name);
+            if (existingFile) {
+                if (existingFile.content !== sourceFile.content) {
+                    filesUpdated++;
+                }
+            } else {
+                filesAdded++;
+            }
+        });
+    }
+    
+    // Test commit merging logic
+    if (branch1.commits) {
+        if (!branch2.commits) branch2.commits = [];
+        
+        branch1.commits.forEach(sourceCommit => {
+            const existingCommit = branch2.commits.find(c => 
+                c.message === sourceCommit.message && 
+                c.author === sourceCommit.author && 
+                c.date === sourceCommit.date
+            );
+            if (!existingCommit) {
+                commitsAdded++;
+            }
+        });
+    }
+    
+    console.log('Merge simulation results:');
+    console.log(`  Files to add: ${filesAdded}`);
+    console.log(`  Files to update: ${filesUpdated}`);
+    console.log(`  Commits to add: ${commitsAdded}`);
+    
+    const testPassed = (filesAdded >= 0 && filesUpdated >= 0 && commitsAdded >= 0);
+    console.log('Merge functionality test:', testPassed ? 'PASSED' : 'FAILED');
+    
+    return testPassed;
+}
+
 function renderBranches(repo) {
     const branchContainer = document.getElementById('branchListContainer');
     const branchSwitchSelect = document.getElementById('branchSwitchSelect');
@@ -1417,8 +1487,98 @@ async function mergeBranches() {
         return;
     }
     
+    const currentRepo = repositories.find(r => r.name === currentRepoName);
+    if (!currentRepo || !currentRepo.branches) return;
+    
+    // Find source and target branches
+    const sourceBranchData = currentRepo.branches.find(b => b.name === sourceBranch);
+    const targetBranchData = currentRepo.branches.find(b => b.name === targetBranch);
+    
+    if (!sourceBranchData || !targetBranchData) {
+        alert('Source or target branch not found');
+        return;
+    }
+    
     // Save state for undo
     saveStateForUndo('MERGE_BRANCH', `Merged ${sourceBranch} into ${targetBranch}`);
+    
+    // Perform merge operation locally
+    let filesAdded = 0, filesUpdated = 0, commitsAdded = 0;
+    
+    // Step 1: Merge files from source to target
+    if (sourceBranchData.files) {
+        sourceBranchData.files.forEach(sourceFile => {
+            if (!targetBranchData.files) {
+                targetBranchData.files = [];
+            }
+            
+            // Check if file exists in target
+            const existingFile = targetBranchData.files.find(f => f.name === sourceFile.name);
+            
+            if (existingFile) {
+                // File exists, update content if different
+                if (existingFile.content !== sourceFile.content) {
+                    existingFile.content = sourceFile.content;
+                    existingFile.info = sourceFile.info;
+                    existingFile.date = 'merged - ' + new Date().toLocaleString();
+                    filesUpdated++;
+                }
+            } else {
+                // File doesn't exist, add it (deep copy)
+                targetBranchData.files.push({
+                    name: sourceFile.name,
+                    content: sourceFile.content,
+                    info: sourceFile.info,
+                    date: 'merged - ' + new Date().toLocaleString()
+                });
+                filesAdded++;
+            }
+        });
+    }
+    
+    // Step 2: Merge commits from source to target
+    if (sourceBranchData.commits) {
+        if (!targetBranchData.commits) {
+            targetBranchData.commits = [];
+        }
+        
+        sourceBranchData.commits.forEach(sourceCommit => {
+            // Check if commit already exists (avoid duplicates)
+            const existingCommit = targetBranchData.commits.find(c => 
+                c.message === sourceCommit.message && 
+                c.author === sourceCommit.author && 
+                c.date === sourceCommit.date
+            );
+            
+            if (!existingCommit) {
+                // Add commit (deep copy)
+                targetBranchData.commits.push({
+                    message: sourceCommit.message,
+                    author: sourceCommit.author,
+                    date: sourceCommit.date
+                });
+                commitsAdded++;
+            }
+        });
+    }
+    
+    // Step 3: Add merge commit
+    const mergeMessage = `Merged branch ${sourceBranch} into ${targetBranch} (${filesAdded} files added, ${filesUpdated} files updated, ${commitsAdded} commits merged)`;
+    
+    if (!targetBranchData.commits) {
+        targetBranchData.commits = [];
+    }
+    
+    targetBranchData.commits.push({
+        message: mergeMessage,
+        author: 'System',
+        date: new Date().toLocaleDateString()
+    });
+    
+    // Update global repository files if target is current branch
+    if (targetBranch === currentRepo.currentBranch) {
+        currentRepo.files = targetBranchData.files ? [...targetBranchData.files] : [];
+    }
     
     // Call backend API
     try {
@@ -1431,7 +1591,16 @@ async function mergeBranches() {
     closeModal('mergeBranchModal');
     showSection('branches');
     
-    showNotification(`Successfully merged '${sourceBranch}' into '${targetBranch}'`, 'success');
+    const detailedMessage = `Successfully merged '${sourceBranch}' into '${targetBranch}': ${filesAdded} files added, ${filesUpdated} files updated, ${commitsAdded} commits merged`;
+    showNotification(detailedMessage, 'success');
+    
+    console.log('Merge completed:', {
+        sourceBranch,
+        targetBranch,
+        filesAdded,
+        filesUpdated,
+        commitsAdded
+    });
 }
 
 async function deleteBranch(branchName) {

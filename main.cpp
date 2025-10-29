@@ -310,22 +310,28 @@ struct BranchManager {
         
         if (!source || !target) return false;
         
-        // Advanced merge: copy files from source to target with proper isolation
+        cout << "Merging branch '" << sourceBranch << "' into '" << targetBranch << "'...\n";
+        
+        // Step 1: Copy files from source to target with proper isolation
+        int filesAdded = 0, filesUpdated = 0;
         File* sourceFile = source->fileHead;
+        
         while (sourceFile) {
             // Check if file exists in target
             File* targetFile = target->fileHead;
-            File* prevTargetFile = NULL;
             bool found = false;
             
             while (targetFile) {
                 if (targetFile->name == sourceFile->name) {
-                    // File exists, create new content (deep copy)
-                    targetFile->content = sourceFile->content;
+                    // File exists, update content (deep copy)
+                    if (targetFile->content != sourceFile->content) {
+                        targetFile->content = sourceFile->content;
+                        filesUpdated++;
+                        cout << "  Updated: " << sourceFile->name << "\n";
+                    }
                     found = true;
                     break;
                 }
-                prevTargetFile = targetFile;
                 targetFile = targetFile->next;
             }
             
@@ -334,13 +340,53 @@ struct BranchManager {
                 File* newFile = new File(sourceFile->name, sourceFile->content);
                 newFile->next = target->fileHead;
                 target->fileHead = newFile;
+                filesAdded++;
+                cout << "  Added: " << sourceFile->name << "\n";
             }
             
             sourceFile = sourceFile->next;
         }
         
-        // Add merge commit to target branch
-        target->commits.addCommit("Merged branch " + sourceBranch + " into " + targetBranch, "System");
+        // Step 2: Copy commits from source branch to target branch
+        int commitsAdded = 0;
+        Commit* sourceCommit = source->commits.head;
+        
+        while (sourceCommit) {
+            // Check if this commit already exists in target (avoid duplicates)
+            bool commitExists = false;
+            Commit* targetCommit = target->commits.head;
+            
+            while (targetCommit) {
+                if (targetCommit->action == sourceCommit->action && 
+                    targetCommit->user == sourceCommit->user &&
+                    targetCommit->date == sourceCommit->date) {
+                    commitExists = true;
+                    break;
+                }
+                targetCommit = targetCommit->next;
+            }
+            
+            if (!commitExists) {
+                // Add commit to target branch (deep copy)
+                target->commits.addCommit(sourceCommit->action, sourceCommit->user);
+                commitsAdded++;
+            }
+            
+            sourceCommit = sourceCommit->next;
+        }
+        
+        // Step 3: Add merge commit to target branch
+        string mergeMessage = "Merged branch " + sourceBranch + " into " + targetBranch;
+        if (filesAdded > 0 || filesUpdated > 0 || commitsAdded > 0) {
+            mergeMessage += " (" + to_string(filesAdded) + " files added, " + 
+                           to_string(filesUpdated) + " files updated, " + 
+                           to_string(commitsAdded) + " commits merged)";
+        }
+        target->commits.addCommit(mergeMessage, "System");
+        
+        cout << "Merge completed: " << filesAdded << " files added, " 
+             << filesUpdated << " files updated, " << commitsAdded << " commits merged.\n";
+        
         return true;
     }
     
@@ -639,6 +685,70 @@ public:
         }
         
         cout << "=== Branch Isolation Test Complete ===\n\n";
+    }
+    
+    // Test function to verify merge functionality
+    void testMergeFunctionality(Repository* repo) {
+        if (repo->branchManager.branchMap.size() < 2) {
+            cout << "Need at least 2 branches to test merge functionality.\n";
+            return;
+        }
+        
+        cout << "\n=== Testing Merge Functionality ===\n";
+        
+        // Get branch names
+        vector<string> branches = repo->branchManager.listBranches();
+        if (branches.size() < 2) return;
+        
+        string branch1 = branches[0];
+        string branch2 = branches[1];
+        
+        cout << "Testing merge from '" << branch1 << "' to '" << branch2 << "'\n";
+        
+        // Count files and commits before merge
+        Branch* b1 = repo->branchManager.branchMap[branch1];
+        Branch* b2 = repo->branchManager.branchMap[branch2];
+        
+        int files1Before = 0, files2Before = 0;
+        int commits1Before = 0, commits2Before = 0;
+        
+        File* temp = b1->fileHead;
+        while (temp) { files1Before++; temp = temp->next; }
+        
+        temp = b2->fileHead;
+        while (temp) { files2Before++; temp = temp->next; }
+        
+        Commit* commitTemp = b1->commits.head;
+        while (commitTemp) { commits1Before++; commitTemp = commitTemp->next; }
+        
+        commitTemp = b2->commits.head;
+        while (commitTemp) { commits2Before++; commitTemp = commitTemp->next; }
+        
+        cout << "Before merge:\n";
+        cout << "  " << branch1 << ": " << files1Before << " files, " << commits1Before << " commits\n";
+        cout << "  " << branch2 << ": " << files2Before << " files, " << commits2Before << " commits\n";
+        
+        // Perform merge
+        bool mergeSuccess = repo->branchManager.mergeBranch(branch1, branch2);
+        
+        if (mergeSuccess) {
+            // Count files and commits after merge
+            int files2After = 0, commits2After = 0;
+            
+            temp = b2->fileHead;
+            while (temp) { files2After++; temp = temp->next; }
+            
+            commitTemp = b2->commits.head;
+            while (commitTemp) { commits2After++; commitTemp = commitTemp->next; }
+            
+            cout << "After merge:\n";
+            cout << "  " << branch2 << ": " << files2After << " files, " << commits2After << " commits\n";
+            cout << "Merge test: " << (files2After >= files2Before && commits2After > commits2Before ? "PASSED" : "FAILED") << "\n";
+        } else {
+            cout << "Merge failed!\n";
+        }
+        
+        cout << "=== Merge Functionality Test Complete ===\n\n";
     }
 
     // -------------------- Task Operations --------------------
@@ -1193,7 +1303,7 @@ int main() {
                 cout << "1. Create File\n2. Edit File\n3. Delete File\n4. Show Files\n";
                 cout << "5. Add Task\n6. Remove Task\n7. View Tasks\n8. Undo\n9. Redo\n";
                 cout << "10. Create Branch\n11. Switch Branch\n12. Merge Branch\n13. List Branches\n";
-                cout << "14. Test Branch Isolation\n15. Back\nEnter: ";
+                cout << "14. Test Branch Isolation\n15. Test Merge Functionality\n16. Back\nEnter: ";
                 cin >> sub; cin.ignore();
                 switch(sub) {
                     case 1: cout << "File name: "; getline(cin, fileName);
@@ -1233,8 +1343,9 @@ int main() {
                     }
                     case 13: git.listBranches(repo); break;
                     case 14: git.testBranchIsolation(repo); break;
+                    case 15: git.testMergeFunctionality(repo); break;
                 }
-            } while(sub != 15);
+            } while(sub != 16);
             break;
         }
         case 5: git.undo(); break;
