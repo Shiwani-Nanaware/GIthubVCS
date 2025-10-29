@@ -175,79 +175,75 @@ function loadFromLocalStorage() {
 
 // --- Undo/Redo/History Functionality ---
 async function performUndo() {
-    try {
-        const response = await fetch('/api/undo', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to perform undo');
-        }
-        
-        const result = await response.json();
-        if (result.success) {
-            // Reload data after undo
-            await loadDataFromBackend();
-            showNotification('Undo successful', 'success');
-        } else {
-            showNotification(result.message || 'Nothing to undo', 'info');
-        }
-    } catch (error) {
-        console.error('Error performing undo:', error);
-        showNotification('Error performing undo: ' + error.message, 'error');
+    if (undoStack.length === 0) {
+        showNotification('Nothing to undo', 'info');
+        return;
     }
+    
+    const currentState = {
+        action: 'Current State',
+        description: 'Before undo',
+        repositories: JSON.parse(JSON.stringify(repositories)),
+        timestamp: new Date().toLocaleString()
+    };
+    
+    const lastState = undoStack.pop();
+    redoStack.push(currentState);
+    
+    // Restore previous state
+    repositories = JSON.parse(JSON.stringify(lastState.repositories));
+    
+    // Save to localStorage
+    localStorage.setItem('githubSimulatorData', JSON.stringify(repositories));
+    
+    // Refresh UI
+    if (window.location.pathname.includes('repo.html')) {
+        renderRepoPageContent();
+        updateUndoRedoCounts();
+    } else {
+        renderDashboard();
+    }
+    
+    showNotification(`Undid: ${lastState.description}`, 'success');
+    console.log(`Undid: ${lastState.description}`);
 }
 
 async function performRedo() {
-    try {
-        const response = await fetch('/api/redo', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to perform redo');
-        }
-        
-        const result = await response.json();
-        if (result.success) {
-            // Reload data after redo
-            await loadDataFromBackend();
-            showNotification('Redo successful', 'success');
-        } else {
-            showNotification(result.message || 'Nothing to redo', 'info');
-        }
-    } catch (error) {
-        console.error('Error performing redo:', error);
-        showNotification('Error performing redo: ' + error.message, 'error');
+    if (redoStack.length === 0) {
+        showNotification('Nothing to redo', 'info');
+        return;
     }
+    
+    const currentState = {
+        action: 'Current State',
+        description: 'Before redo',
+        repositories: JSON.parse(JSON.stringify(repositories)),
+        timestamp: new Date().toLocaleString()
+    };
+    
+    const nextState = redoStack.pop();
+    undoStack.push(currentState);
+    
+    // Restore next state
+    repositories = JSON.parse(JSON.stringify(nextState.repositories));
+    
+    // Save to localStorage
+    localStorage.setItem('githubSimulatorData', JSON.stringify(repositories));
+    
+    // Refresh UI
+    if (window.location.pathname.includes('repo.html')) {
+        renderRepoPageContent();
+        updateUndoRedoCounts();
+    } else {
+        renderDashboard();
+    }
+    
+    showNotification(`Redid: ${nextState.description}`, 'success');
+    console.log(`Redid: ${nextState.description}`);
 }
 
 async function showHistory() {
     try {
-        // Fetch the latest data including undo/redo stacks
-        const [historyResponse, undoRedoResponse] = await Promise.all([
-            fetch('data.json'),
-            fetch('/api/undo-redo-stacks')
-        ]);
-        
-        const data = await historyResponse.json();
-        let undoStack = [];
-        let redoStack = [];
-        
-        try {
-            const undoRedoData = await undoRedoResponse.json();
-            undoStack = undoRedoData.undoStack || [];
-            redoStack = undoRedoData.redoStack || [];
-        } catch (e) {
-            console.warn('Could not fetch undo/redo stacks:', e);
-        }
-        
         // Create and show history modal
         const modal = document.createElement('div');
         modal.className = 'modal';
@@ -263,8 +259,9 @@ async function showHistory() {
                             undoStack.map((action, index) => `
                                 <div class="stack-item">
                                     <span class="stack-item-index">${undoStack.length - index}.</span>
-                                    <span class="stack-item-action">${action.type}</span>
-                                    <span class="stack-item-details">${action.repoName}${action.fileName ? ' > ' + action.fileName : ''}</span>
+                                    <span class="stack-item-action">${action.action}</span>
+                                    <span class="stack-item-details">${action.description}</span>
+                                    <span class="stack-item-time">${action.timestamp}</span>
                                 </div>
                             `).join('') : 
                             '<div class="empty-state">No actions to undo</div>'
@@ -279,30 +276,13 @@ async function showHistory() {
                             redoStack.map((action, index) => `
                                 <div class="stack-item">
                                     <span class="stack-item-index">${index + 1}.</span>
-                                    <span class="stack-item-action">${action.type}</span>
-                                    <span class="stack-item-details">${action.repoName}${action.fileName ? ' > ' + action.fileName : ''}</span>
+                                    <span class="stack-item-action">${action.action}</span>
+                                    <span class="stack-item-details">${action.description}</span>
+                                    <span class="stack-item-time">${action.timestamp}</span>
                                 </div>
                             `).join('') : 
                             '<div class="empty-state">No actions to redo</div>'
                         }
-                    </div>
-                </div>
-                
-                <div class="history-section">
-                    <h3>Commit History</h3>
-                    <div class="history-list">
-                        ${data.repositories.flatMap(repo => 
-                            repo.commits ? 
-                            repo.commits.map(commit => `
-                                <div class="history-item">
-                                    <div class="history-message">${commit.message}</div>
-                                    <div class="history-meta">
-                                        <span class="history-author">${commit.author}</span>
-                                        <span class="history-date">${commit.date}</span>
-                                    </div>
-                                </div>
-                            `).join('') : ''
-                        ).join('')}
                     </div>
                 </div>
                 
@@ -341,6 +321,19 @@ function showNotification(message, type = 'info') {
         notification.classList.add('fade-out');
         setTimeout(() => notification.remove(), 300);
     }, 3000);
+}
+
+// Function to update the undo/redo counts in the UI
+function updateUndoRedoCounts() {
+    const undoCountElement = document.getElementById('undo-count');
+    const redoCountElement = document.getElementById('redo-count');
+    
+    if (undoCountElement) {
+        undoCountElement.textContent = undoStack.length;
+    }
+    if (redoCountElement) {
+        redoCountElement.textContent = redoStack.length;
+    }
 }
 
 // --- Search Functionality ---
@@ -996,74 +989,15 @@ function saveStateForUndo(action, description, oldState = null) {
     undoStack.push(state);
     redoStack = []; // Clear redo stack when new action is performed
     
+    // Update counts in UI if on repo page
+    if (window.location.pathname.includes('repo.html')) {
+        updateUndoRedoCounts();
+    }
+    
     // Limit undo stack size
     if (undoStack.length > 50) {
         undoStack.shift();
     }
-}
-
-async function performUndo() {
-    if (undoStack.length === 0) {
-        alert('Nothing to undo');
-        return;
-    }
-    
-    const currentState = {
-        action: 'Current State',
-        description: 'Before undo',
-        repositories: JSON.parse(JSON.stringify(repositories)),
-        timestamp: new Date().toLocaleString()
-    };
-    
-    const lastState = undoStack.pop();
-    redoStack.push(currentState);
-    
-    // Restore previous state
-    repositories = JSON.parse(JSON.stringify(lastState.repositories));
-    
-    // Save to localStorage
-    localStorage.setItem('githubSimulatorData', JSON.stringify(repositories));
-    
-    // Refresh UI
-    if (window.location.pathname.includes('repo.html')) {
-        renderRepoPageContent();
-    } else {
-        renderDashboard();
-    }
-    
-    console.log(`Undid: ${lastState.description}`);
-}
-
-async function performRedo() {
-    if (redoStack.length === 0) {
-        alert('Nothing to redo');
-        return;
-    }
-    
-    const currentState = {
-        action: 'Current State',
-        description: 'Before redo',
-        repositories: JSON.parse(JSON.stringify(repositories)),
-        timestamp: new Date().toLocaleString()
-    };
-    
-    const nextState = redoStack.pop();
-    undoStack.push(currentState);
-    
-    // Restore next state
-    repositories = JSON.parse(JSON.stringify(nextState.repositories));
-    
-    // Save to localStorage
-    localStorage.setItem('githubSimulatorData', JSON.stringify(repositories));
-    
-    // Refresh UI
-    if (window.location.pathname.includes('repo.html')) {
-        renderRepoPageContent();
-    } else {
-        renderDashboard();
-    }
-    
-    console.log(`Redid: ${nextState.description}`);
 }
 
 function renderHistory() {
@@ -1148,6 +1082,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     if (window.location.pathname.includes('repo.html')) {
         renderRepoPageContent();
+        updateUndoRedoCounts();
     } else {
         renderDashboard();
     }
