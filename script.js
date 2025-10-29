@@ -39,6 +39,10 @@ function loadFallbackData() {
             description: 'DSA Questions',
             createdDate: '10/4/2025',
             isPrivate: false,
+            currentBranch: 'main',
+            branches: [
+                { name: 'main', parent: '', current: true }
+            ],
             files: [
                 {
                     name: 'LeetCodeSolutions.js',
@@ -451,7 +455,13 @@ function renderRepoPageContent() {
             
             // Initialize branches if not present
             if (!repo.branches) {
-                repo.branches = [{ name: 'main', parent: '', current: true }];
+                repo.branches = [{ 
+                    name: 'main', 
+                    parent: '', 
+                    current: true,
+                    files: repo.files ? repo.files.map(file => ({...file})) : [], // Deep copy current files
+                    commits: repo.commits ? [...repo.commits] : [] // Copy current commits
+                }];
                 repo.currentBranch = 'main';
             }
         }
@@ -774,14 +784,35 @@ async function createNewFile() {
         saveStateForUndo('CREATE_FILE', `Created file: ${fullFileName}`);
         
         // Add file to repository
-        currentRepo.files.push({
+        const newFile = {
             name: fullFileName,
             info: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
             date: 'a few seconds ago',
             content: content
-        });
+        };
         
-        // Add commit
+        currentRepo.files.push(newFile);
+        
+        // Also add to current branch's files
+        const currentBranchData = currentRepo.branches?.find(b => b.current);
+        if (currentBranchData) {
+            if (!currentBranchData.files) {
+                currentBranchData.files = [];
+            }
+            currentBranchData.files.push({...newFile}); // Deep copy
+            
+            // Add commit to branch-specific commits
+            if (!currentBranchData.commits) {
+                currentBranchData.commits = [];
+            }
+            currentBranchData.commits.push({
+                message: commitMessage || `Created file: ${fullFileName}`,
+                author: 'Shiwani',
+                date: new Date().toLocaleDateString()
+            });
+        }
+        
+        // Add commit to global commits
         currentRepo.commits.push({
             message: commitMessage || `Created file: ${fullFileName}`,
             author: 'Shiwani',
@@ -831,7 +862,29 @@ async function saveFileChanges() {
             file.date = 'a few seconds ago';
             file.content = fileContent || file.content || '';
             
-            // Add commit for the change
+            // Also update in current branch's files
+            const currentBranchData = currentRepo.branches?.find(b => b.current);
+            if (currentBranchData && currentBranchData.files) {
+                const branchFile = currentBranchData.files.find(f => f.name === currentFileName);
+                if (branchFile) {
+                    branchFile.name = fileName;
+                    branchFile.info = file.info;
+                    branchFile.date = file.date;
+                    branchFile.content = file.content;
+                }
+                
+                // Add commit to branch-specific commits
+                if (!currentBranchData.commits) {
+                    currentBranchData.commits = [];
+                }
+                currentBranchData.commits.push({
+                    message: `Updated file: ${oldName} → ${fileName}`,
+                    author: 'Shiwani',
+                    date: new Date().toLocaleDateString()
+                });
+            }
+            
+            // Add commit for the change to global commits
             currentRepo.commits.push({
                 message: `Updated file: ${oldName} → ${fileName}`,
                 author: 'Shiwani',
@@ -856,7 +909,23 @@ async function confirmDeleteFile() {
     if (currentRepo) {
         currentRepo.files = currentRepo.files.filter(f => f.name !== currentFileName);
         
-        // Add commit
+        // Also remove from current branch's files
+        const currentBranchData = currentRepo.branches?.find(b => b.current);
+        if (currentBranchData && currentBranchData.files) {
+            currentBranchData.files = currentBranchData.files.filter(f => f.name !== currentFileName);
+            
+            // Add commit to branch-specific commits
+            if (!currentBranchData.commits) {
+                currentBranchData.commits = [];
+            }
+            currentBranchData.commits.push({
+                message: `Deleted file: ${currentFileName}`,
+                author: 'Shiwani',
+                date: new Date().toLocaleDateString()
+            });
+        }
+        
+        // Add commit to global commits
         currentRepo.commits.push({
             message: `Deleted file: ${currentFileName}`,
             author: 'Shiwani',
@@ -1092,6 +1161,39 @@ function viewFileContent(fileName) {
 }
 
 // -------------------- Branch Management Functions --------------------
+
+// Test function to verify branch isolation
+function testBranchIsolation() {
+    console.log('Testing branch isolation...');
+    const testRepo = repositories.find(r => r.name === currentRepoName);
+    if (!testRepo || !testRepo.branches || testRepo.branches.length < 2) {
+        console.log('Need at least 2 branches to test isolation');
+        return;
+    }
+    
+    const branch1 = testRepo.branches[0];
+    const branch2 = testRepo.branches[1];
+    
+    console.log('Branch 1 files:', branch1.files?.length || 0);
+    console.log('Branch 2 files:', branch2.files?.length || 0);
+    
+    // Test if modifying one branch affects another
+    if (branch1.files && branch2.files && branch1.files.length > 0) {
+        const originalContent = branch1.files[0].content;
+        branch1.files[0].content = 'MODIFIED_CONTENT_TEST';
+        
+        const isolated = branch2.files.find(f => f.name === branch1.files[0].name)?.content !== 'MODIFIED_CONTENT_TEST';
+        console.log('Branch isolation working:', isolated);
+        
+        // Restore original content
+        branch1.files[0].content = originalContent;
+        
+        return isolated;
+    }
+    
+    return true;
+}
+
 function renderBranches(repo) {
     const branchContainer = document.getElementById('branchListContainer');
     const branchSwitchSelect = document.getElementById('branchSwitchSelect');
@@ -1191,15 +1293,39 @@ async function createNewBranch() {
     // Save state for undo
     saveStateForUndo('CREATE_BRANCH', `Created branch: ${newBranchName} from ${baseBranch}`);
     
-    // Add new branch
+    // Add new branch with deep copy of files from base branch
     if (!currentRepo.branches) {
         currentRepo.branches = [{ name: 'main', parent: '', current: true }];
+    }
+    
+    // Find the base branch to copy files from
+    const baseBranchData = currentRepo.branches.find(b => b.name === baseBranch);
+    let branchFiles = [];
+    
+    if (baseBranchData && baseBranchData.files) {
+        // Deep copy files from base branch
+        branchFiles = baseBranchData.files.map(file => ({
+            name: file.name,
+            content: file.content,
+            info: file.info,
+            date: file.date
+        }));
+    } else if (baseBranch === 'main' || baseBranch === currentRepo.currentBranch) {
+        // Copy files from current repository files (main branch)
+        branchFiles = currentRepo.files.map(file => ({
+            name: file.name,
+            content: file.content,
+            info: file.info,
+            date: file.date
+        }));
     }
     
     currentRepo.branches.push({
         name: newBranchName,
         parent: baseBranch,
-        current: false
+        current: false,
+        files: branchFiles, // Store branch-specific files
+        commits: [] // Initialize empty commits array for this branch
     });
     
     // Call backend API
@@ -1225,11 +1351,36 @@ async function switchToBranch(branchName) {
     const currentRepo = repositories.find(r => r.name === currentRepoName);
     if (!currentRepo || !currentRepo.branches) return;
     
+    // Save current branch files before switching
+    const currentBranchData = currentRepo.branches.find(b => b.current);
+    if (currentBranchData) {
+        currentBranchData.files = currentRepo.files.map(file => ({
+            name: file.name,
+            content: file.content,
+            info: file.info,
+            date: file.date
+        }));
+    }
+    
     // Update current branch
     currentRepo.branches.forEach(branch => {
         branch.current = branch.name === branchName;
     });
     currentRepo.currentBranch = branchName;
+    
+    // Load files from the target branch
+    const targetBranchData = currentRepo.branches.find(b => b.name === branchName);
+    if (targetBranchData && targetBranchData.files) {
+        currentRepo.files = targetBranchData.files.map(file => ({
+            name: file.name,
+            content: file.content,
+            info: file.info,
+            date: file.date
+        }));
+    } else {
+        // If no branch-specific files, use empty array or default files
+        currentRepo.files = [];
+    }
     
     // Save state for undo
     saveStateForUndo('SWITCH_BRANCH', `Switched to branch: ${branchName}`);

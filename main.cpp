@@ -183,15 +183,29 @@ struct Branch {
     Branch(string name, string parent = "") : branchName(name), parentBranch(parent), 
            fileHead(NULL), left(NULL), right(NULL), parent(NULL) {}
     
+    // Clear all files in this branch
+    void clearFiles() {
+        while (fileHead) {
+            File* temp = fileHead;
+            fileHead = fileHead->next;
+            delete temp;
+        }
+    }
+    
     // Deep copy files from another branch
     void copyFilesFrom(Branch* source) {
-        if (!source || !source->fileHead) return;
+        if (!source) return;
+        
+        // Clear existing files first
+        clearFiles();
         
         File* sourceFile = source->fileHead;
         File* prevFile = NULL;
         
         while (sourceFile) {
+            // Create a completely new file with copied content (deep copy)
             File* newFile = new File(sourceFile->name, sourceFile->content);
+            
             if (!fileHead) {
                 fileHead = newFile;
             } else {
@@ -200,6 +214,40 @@ struct Branch {
             prevFile = newFile;
             sourceFile = sourceFile->next;
         }
+    }
+    
+    // Deep copy commit history from another branch
+    void copyCommitsFrom(Branch* source) {
+        if (!source) return;
+        
+        // Clear existing commits first
+        clearCommits();
+        
+        Commit* sourceCommit = source->commits.head;
+        while (sourceCommit) {
+            // Create a new commit with copied data (deep copy)
+            commits.addCommit(sourceCommit->action, sourceCommit->user);
+            sourceCommit = sourceCommit->next;
+        }
+    }
+    
+    // Clear all commits in this branch
+    void clearCommits() {
+        while (commits.head) {
+            Commit* temp = commits.head;
+            commits.head = commits.head->next;
+            if (commits.head) {
+                commits.head->prev = NULL;
+            }
+            delete temp;
+        }
+        commits.tail = NULL;
+    }
+    
+    // Destructor to clean up memory
+    ~Branch() {
+        clearFiles();
+        clearCommits();
     }
 };
 
@@ -223,7 +271,12 @@ struct BranchManager {
         if (!base) return false;
         
         Branch* newBr = new Branch(newBranch, baseBranch);
+        
+        // Deep copy files and commits from base branch
         newBr->copyFilesFrom(base);
+        newBr->copyCommitsFrom(base);
+        
+        // Set up branch relationships
         newBr->parent = base;
         base->children.push_back(newBr);
         branchMap[newBranch] = newBr;
@@ -257,24 +310,27 @@ struct BranchManager {
         
         if (!source || !target) return false;
         
-        // Simple merge: copy files from source to target
+        // Advanced merge: copy files from source to target with proper isolation
         File* sourceFile = source->fileHead;
         while (sourceFile) {
             // Check if file exists in target
             File* targetFile = target->fileHead;
+            File* prevTargetFile = NULL;
             bool found = false;
+            
             while (targetFile) {
                 if (targetFile->name == sourceFile->name) {
-                    // File exists, update content
+                    // File exists, create new content (deep copy)
                     targetFile->content = sourceFile->content;
                     found = true;
                     break;
                 }
+                prevTargetFile = targetFile;
                 targetFile = targetFile->next;
             }
             
             if (!found) {
-                // File doesn't exist, add it
+                // File doesn't exist, add it with deep copy
                 File* newFile = new File(sourceFile->name, sourceFile->content);
                 newFile->next = target->fileHead;
                 target->fileHead = newFile;
@@ -283,6 +339,7 @@ struct BranchManager {
             sourceFile = sourceFile->next;
         }
         
+        // Add merge commit to target branch
         target->commits.addCommit("Merged branch " + sourceBranch + " into " + targetBranch, "System");
         return true;
     }
@@ -300,6 +357,14 @@ struct BranchManager {
         }
         json << "],\"currentBranch\":\"" << currentBranch << "\"}";
         return json.str();
+    }
+    
+    // Destructor to clean up all branches
+    ~BranchManager() {
+        for (auto& pair : branchMap) {
+            delete pair.second;
+        }
+        branchMap.clear();
     }
 };
 
@@ -410,6 +475,7 @@ public:
         if (currentBranch) {
             currentBranch->commits.addCommit("Created File: " + fileName, currentUser);
         }
+        // Also add to global commit history for tracking
         commits.addCommit("Created File: " + fileName + " in branch " + repo->branchManager.currentBranch, currentUser);
         cout << "File created successfully in branch " << repo->branchManager.currentBranch << ".\n";
     }
@@ -436,6 +502,7 @@ public:
         if (currentBranch) {
             currentBranch->commits.addCommit("Deleted File: " + fileName, currentUser);
         }
+        // Also add to global commit history for tracking
         commits.addCommit("Deleted File: " + fileName + " in branch " + repo->branchManager.currentBranch, currentUser);
         
         // Delete the file
@@ -462,6 +529,7 @@ public:
         if (currentBranch) {
             currentBranch->commits.addCommit("Edited File: " + fileName, currentUser);
         }
+        // Also add to global commit history for tracking
         commits.addCommit("Edited File: " + fileName + " in branch " + repo->branchManager.currentBranch, currentUser);
         cout << "File edited successfully in branch " << repo->branchManager.currentBranch << ".\n";
     }
@@ -480,6 +548,12 @@ public:
     // -------------------- Branch Operations --------------------
     void createBranch(Repository* repo, string baseBranch, string newBranch) {
         if (repo->branchManager.createBranch(baseBranch, newBranch)) {
+            // Add commit to the new branch
+            Branch* newBranchPtr = repo->branchManager.branchMap[newBranch];
+            if (newBranchPtr) {
+                newBranchPtr->commits.addCommit("Created branch: " + newBranch + " from " + baseBranch, currentUser);
+            }
+            // Add to global commit history
             commits.addCommit("Created branch: " + newBranch + " from " + baseBranch, currentUser);
             cout << "Branch '" << newBranch << "' created from '" << baseBranch << "'.\n";
         } else {
@@ -515,6 +589,56 @@ public:
                 cout << "  " << branch << "\n";
             }
         }
+    }
+    
+    // Test function to verify branch isolation
+    void testBranchIsolation(Repository* repo) {
+        if (repo->branchManager.branchMap.size() < 2) {
+            cout << "Need at least 2 branches to test isolation.\n";
+            return;
+        }
+        
+        cout << "\n=== Testing Branch Isolation ===\n";
+        
+        // Get two different branches
+        auto it = repo->branchManager.branchMap.begin();
+        Branch* branch1 = it->second;
+        ++it;
+        Branch* branch2 = it->second;
+        
+        cout << "Branch 1: " << branch1->branchName << "\n";
+        cout << "Branch 2: " << branch2->branchName << "\n";
+        
+        // Count files in each branch
+        int files1 = 0, files2 = 0;
+        File* temp = branch1->fileHead;
+        while (temp) { files1++; temp = temp->next; }
+        
+        temp = branch2->fileHead;
+        while (temp) { files2++; temp = temp->next; }
+        
+        cout << "Files in " << branch1->branchName << ": " << files1 << "\n";
+        cout << "Files in " << branch2->branchName << ": " << files2 << "\n";
+        
+        // Test isolation by adding a file to branch1 and checking branch2
+        if (branch1->fileHead) {
+            string originalContent = branch1->fileHead->content;
+            branch1->fileHead->content = "ISOLATION_TEST_CONTENT";
+            
+            bool isolated = true;
+            if (branch2->fileHead && branch2->fileHead->name == branch1->fileHead->name) {
+                isolated = (branch2->fileHead->content != "ISOLATION_TEST_CONTENT");
+            }
+            
+            // Restore original content
+            branch1->fileHead->content = originalContent;
+            
+            cout << "Branch isolation working: " << (isolated ? "YES" : "NO") << "\n";
+        } else {
+            cout << "No files to test isolation with.\n";
+        }
+        
+        cout << "=== Branch Isolation Test Complete ===\n\n";
     }
 
     // -------------------- Task Operations --------------------
@@ -735,7 +859,27 @@ public:
                 fileTemp = fileTemp->next;
                 firstFile = false;
             }
-            json << "],\"commits\":[{\"message\":\"Repository created\",\"author\":\"" << currentUser << "\",\"date\":\"" << getCurrentDate() << "\"}]}";
+            json << "],\"commits\":[";
+            
+            // Get commits from current branch
+            Branch* currentBranch = temp->branchManager.getCurrentBranch();
+            if (currentBranch && currentBranch->commits.head) {
+                Commit* commitTemp = currentBranch->commits.head;
+                bool firstCommit = true;
+                while (commitTemp) {
+                    if (!firstCommit) json << ",";
+                    json << "{\"message\":\"" << commitTemp->action 
+                         << "\",\"author\":\"" << commitTemp->user 
+                         << "\",\"date\":\"" << commitTemp->date << "\"}";
+                    commitTemp = commitTemp->next;
+                    firstCommit = false;
+                }
+            } else {
+                // Fallback commit if no branch commits exist
+                json << "{\"message\":\"Repository created\",\"author\":\"" << currentUser << "\",\"date\":\"" << getCurrentDate() << "\"}";
+            }
+            
+            json << "]}";
             temp = temp->next;
             first = false;
         }
@@ -1048,7 +1192,8 @@ int main() {
                 cout << "\n--- Manage " << repoName << " (Current Branch: " << repo->branchManager.currentBranch << ") ---\n";
                 cout << "1. Create File\n2. Edit File\n3. Delete File\n4. Show Files\n";
                 cout << "5. Add Task\n6. Remove Task\n7. View Tasks\n8. Undo\n9. Redo\n";
-                cout << "10. Create Branch\n11. Switch Branch\n12. Merge Branch\n13. List Branches\n14. Back\nEnter: ";
+                cout << "10. Create Branch\n11. Switch Branch\n12. Merge Branch\n13. List Branches\n";
+                cout << "14. Test Branch Isolation\n15. Back\nEnter: ";
                 cin >> sub; cin.ignore();
                 switch(sub) {
                     case 1: cout << "File name: "; getline(cin, fileName);
@@ -1087,8 +1232,9 @@ int main() {
                         break;
                     }
                     case 13: git.listBranches(repo); break;
+                    case 14: git.testBranchIsolation(repo); break;
                 }
-            } while(sub != 14);
+            } while(sub != 15);
             break;
         }
         case 5: git.undo(); break;
