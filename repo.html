@@ -120,8 +120,35 @@
                 <div id="commits-section" class="content-section">
                     <div class="section-header">
                         <h3>Commit History</h3>
+                        <div class="section-actions">
+                            <button class="secondary-btn" onclick="toggleCommitGraph()" id="toggleGraphBtn">
+                                <svg viewBox="0 0 16 16" fill="currentColor">
+                                    <path d="M1.5 1.75V13.5h13.75a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 1-.75-.75V1.75a.75.75 0 0 1 1.5 0Zm14.28 2.53-5.25 5.25a.75.75 0 0 1-1.06 0L7 7.06 4.28 9.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.25-3.25a.75.75 0 0 1 1.06 0L10 7.94l4.72-4.72a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042Z"/>
+                                </svg>
+                                <span id="graphToggleText">Show Graph</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="content-body">
+                        <div id="commitGraphContainer" class="commit-graph-container" style="display: none;">
+                            <div class="graph-legend">
+                                <div class="legend-item">
+                                    <div class="legend-color main-branch"></div>
+                                    <span>Main Branch</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color feature-branch"></div>
+                                    <span>Feature Branches</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color merge-commit"></div>
+                                    <span>Merge Commits</span>
+                                </div>
+                            </div>
+                            <div id="commitGraph" class="commit-graph">
+                                <!-- SVG graph will be rendered here -->
+                            </div>
+                        </div>
                         <div class="commit-list-container">
                         </div>
                     </div>

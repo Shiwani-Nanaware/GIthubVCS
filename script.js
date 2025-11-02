@@ -46,6 +46,1231 @@ function toggleUser() {
     showNotification(`Switched to user: ${currentUser}`, 'info');
 }
 
+// --- Commit Graph Visualization ---
+let commitGraphVisible = false;
+
+function toggleCommitGraph() {
+    const container = document.getElementById('commitGraphContainer');
+    const toggleBtn = document.getElementById('toggleGraphBtn');
+    const toggleText = document.getElementById('graphToggleText');
+    
+    commitGraphVisible = !commitGraphVisible;
+    
+    if (commitGraphVisible) {
+        container.style.display = 'block';
+        toggleText.textContent = 'Hide Graph';
+        renderCommitGraph();
+    } else {
+        container.style.display = 'none';
+        toggleText.textContent = 'Show Graph';
+    }
+}
+
+function renderCommitGraph() {
+    const repo = getCurrentRepository();
+    if (!repo) return;
+    
+    const graphContainer = document.getElementById('commitGraph');
+    
+    // Collect commits from all branches
+    let allCommits = [...(repo.commits || [])]; // Start with main repo commits
+    const branches = repo.branches || [];
+    
+    // Add commits from each branch
+    branches.forEach(branch => {
+        if (branch.commits && branch.commits.length > 0) {
+            branch.commits.forEach(branchCommit => {
+                // Ensure branch name is set
+                if (!branchCommit.branch) {
+                    branchCommit.branch = branch.name;
+                }
+                
+                // Check if commit already exists (avoid duplicates)
+                const exists = allCommits.some(existingCommit => 
+                    existingCommit.message === branchCommit.message &&
+                    existingCommit.author === branchCommit.author &&
+                    existingCommit.date === branchCommit.date &&
+                    existingCommit.branch === branchCommit.branch
+                );
+                
+                if (!exists) {
+                    allCommits.push(branchCommit);
+                }
+            });
+        }
+    });
+    
+    // Sort commits by timestamp for proper ordering
+    allCommits.sort((a, b) => {
+        const timeA = a.timestamp || 0;
+        const timeB = b.timestamp || 0;
+        return timeA - timeB; // Oldest first for graph display
+    });
+    
+    // Create commit graph data structure
+    const graphData = generateCommitGraphData(allCommits, branches);
+    
+    // Render SVG
+    const svg = createCommitGraphSVG(graphData);
+    graphContainer.innerHTML = '';
+    graphContainer.appendChild(svg);
+    
+    // Add tooltip
+    addCommitGraphTooltip();
+}
+
+function generateCommitGraphData(commits, branches) {
+    const graphData = {
+        commits: [],
+        branches: [],
+        connections: []
+    };
+    
+    // Enhanced color palette for better branch distinction
+    const branchColors = {
+        'main': '#1f6feb',
+        'master': '#1f6feb'
+    };
+    
+    const featureColors = [
+        '#56d364', '#f85149', '#d2a8ff', '#ffa657', '#ff7b72',
+        '#79c0ff', '#a5f3fc', '#fde047', '#fb7185', '#c084fc'
+    ];
+    let colorIndex = 0;
+    
+    // Create branch mapping with X positions (vertical layout)
+    const branchXPositions = {};
+    
+    // Get all branches from both commits and repository branches
+    const branchesFromCommits = [...new Set(commits.map(c => c.branch || 'main'))];
+    const branchesFromRepo = branches ? branches.map(b => b.name) : [];
+    const allBranches = [...new Set([...branchesFromCommits, ...branchesFromRepo])];
+    
+    // Sort branches to put main first, then others
+    const sortedBranches = allBranches.sort((a, b) => {
+        if (a === 'main' || a === 'master') return -1;
+        if (b === 'main' || b === 'master') return 1;
+        return a.localeCompare(b);
+    });
+    
+    sortedBranches.forEach((branchName, index) => {
+        if (!branchColors[branchName] && branchName !== 'main' && branchName !== 'master') {
+            branchColors[branchName] = featureColors[colorIndex % featureColors.length];
+            colorIndex++;
+        }
+        // Main branch at x=80, feature branches to the left with reduced spacing
+        branchXPositions[branchName] = branchName === 'main' ? 80 : 80 - ((index) * 30);
+    });
+    
+    // Generate commits with vertical layout (commits flow downward)
+    const commitSpacing = 45; // Reduced vertical spacing between commits
+    let currentY = 60;
+    
+    commits.forEach((commit, globalIndex) => {
+        const branchName = commit.branch || 'main';
+        const color = branchColors[branchName] || '#56d364';
+        
+        const commitData = {
+            id: `commit-${globalIndex}`,
+            message: commit.message,
+            author: commit.author,
+            date: commit.date,
+            branch: branchName,
+            color: color,
+            x: branchXPositions[branchName],
+            y: currentY,
+            isMerge: commit.message.toLowerCase().includes('merge'),
+            isFeature: !['main', 'master'].includes(branchName),
+            globalIndex: globalIndex
+        };
+        
+        graphData.commits.push(commitData);
+        currentY += commitSpacing;
+    });
+    
+    // Create enhanced connections for vertical layout
+    graphData.commits.forEach((commit, index) => {
+        // Connect to previous commit on same branch
+        const prevCommitOnBranch = graphData.commits
+            .filter(c => c.branch === commit.branch && c.globalIndex < commit.globalIndex)
+            .sort((a, b) => b.globalIndex - a.globalIndex)[0];
+            
+        if (prevCommitOnBranch) {
+            graphData.connections.push({
+                from: prevCommitOnBranch,
+                to: commit,
+                color: commit.color,
+                type: 'branch-flow',
+                strokeWidth: 3
+            });
+        }
+        
+        // Handle branch creation (connect to parent branch)
+        if (commit.isFeature && !prevCommitOnBranch) {
+            const parentCommit = graphData.commits
+                .filter(c => c.branch === 'main' && c.globalIndex < commit.globalIndex)
+                .sort((a, b) => b.globalIndex - a.globalIndex)[0];
+                
+            if (parentCommit) {
+                graphData.connections.push({
+                    from: parentCommit,
+                    to: commit,
+                    color: commit.color,
+                    type: 'branch-split',
+                    strokeWidth: 2
+                });
+            }
+        }
+        
+        // Handle merge commits
+        if (commit.isMerge && commit.branch === 'main') {
+            const featureBranches = [...new Set(
+                graphData.commits
+                    .filter(c => c.isFeature && c.globalIndex < commit.globalIndex)
+                    .map(c => c.branch)
+            )];
+            
+            featureBranches.forEach(featureBranch => {
+                const lastFeatureCommit = graphData.commits
+                    .filter(c => c.branch === featureBranch && c.globalIndex < commit.globalIndex)
+                    .sort((a, b) => b.globalIndex - a.globalIndex)[0];
+                    
+                if (lastFeatureCommit) {
+                    graphData.connections.push({
+                        from: lastFeatureCommit,
+                        to: commit,
+                        color: '#f85149',
+                        type: 'merge',
+                        strokeWidth: 2
+                    });
+                }
+            });
+        }
+    });
+    
+    // Store branches data for use in rendering
+    graphData.branches = branches || [];
+    
+    return graphData;
+}
+
+function getBranchY(branchName, branches) {
+    const branchIndex = branches.findIndex(b => b.name === branchName);
+    return branchIndex >= 0 ? branchIndex * 60 : 0;
+}
+
+function createCommitGraphSVG(graphData) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    
+    // Calculate dimensions for vertical network graph (larger height)
+    const minX = graphData.commits.length > 0 ? Math.min(...graphData.commits.map(c => c.x)) : 0;
+    const maxX = graphData.commits.length > 0 ? Math.max(...graphData.commits.map(c => c.x)) : 0;
+    const maxY = graphData.commits.length > 0 ? Math.max(...graphData.commits.map(c => c.y)) : 0;
+    
+    const width = Math.max(400, (maxX - minX) + 250);
+    const height = Math.max(600, maxY + 150);
+    
+    svg.setAttribute('width', width);
+    svg.setAttribute('height', height);
+    svg.setAttribute('viewBox', `${minX - 50} 0 ${width} ${height}`);
+    
+    // Add enhanced grid background
+    addVerticalGridBackground(svg, minX - 50, width, height);
+    
+    // Draw vertical branch lanes
+    drawVerticalBranchLanes(svg, graphData, height);
+    
+    // Draw connections (behind commits)
+    graphData.connections.forEach(connection => {
+        drawVerticalConnection(svg, connection);
+    });
+    
+    // Draw commits with enhanced styling
+    graphData.commits.forEach(commit => {
+        drawVerticalCommit(svg, commit);
+    });
+    
+    // Add vertical branch labels
+    addVerticalBranchLabels(svg, graphData);
+    
+    return svg;
+}
+
+function addZoomPanFunctionality(svg) {
+    let isPanning = false;
+    let startPoint = { x: 0, y: 0 };
+    let currentTransform = { x: 0, y: 0, scale: 1 };
+    
+    // Create a group for all graph elements
+    const graphGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    graphGroup.setAttribute('class', 'graph-content');
+    
+    // Move all existing children to the group
+    while (svg.firstChild) {
+        graphGroup.appendChild(svg.firstChild);
+    }
+    svg.appendChild(graphGroup);
+    
+    // Mouse wheel zoom
+    svg.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const rect = svg.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        const scaleFactor = e.deltaY > 0 ? 0.9 : 1.1;
+        currentTransform.scale *= scaleFactor;
+        currentTransform.scale = Math.max(0.1, Math.min(3, currentTransform.scale));
+        
+        // Zoom towards mouse position
+        currentTransform.x = mouseX - (mouseX - currentTransform.x) * scaleFactor;
+        currentTransform.y = mouseY - (mouseY - currentTransform.y) * scaleFactor;
+        
+        updateTransform();
+    });
+    
+    // Mouse pan
+    svg.addEventListener('mousedown', (e) => {
+        if (e.button === 0) { // Left mouse button
+            isPanning = true;
+            startPoint = { x: e.clientX - currentTransform.x, y: e.clientY - currentTransform.y };
+            svg.style.cursor = 'grabbing';
+        }
+    });
+    
+    svg.addEventListener('mousemove', (e) => {
+        if (isPanning) {
+            currentTransform.x = e.clientX - startPoint.x;
+            currentTransform.y = e.clientY - startPoint.y;
+            updateTransform();
+        }
+    });
+    
+    svg.addEventListener('mouseup', () => {
+        isPanning = false;
+        svg.style.cursor = 'grab';
+    });
+    
+    svg.addEventListener('mouseleave', () => {
+        isPanning = false;
+        svg.style.cursor = 'default';
+    });
+    
+    function updateTransform() {
+        graphGroup.setAttribute('transform', 
+            `translate(${currentTransform.x}, ${currentTransform.y}) scale(${currentTransform.scale})`);
+    }
+    
+    // Set initial cursor
+    svg.style.cursor = 'grab';
+    
+    return svg;
+}
+
+function addGridBackground(svg, width, height) {
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    const pattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
+    
+    pattern.setAttribute('id', 'grid');
+    pattern.setAttribute('width', '20');
+    pattern.setAttribute('height', '20');
+    pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+    
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M 20 0 L 0 0 0 20');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', '#21262d');
+    path.setAttribute('stroke-width', '1');
+    
+    pattern.appendChild(path);
+    defs.appendChild(pattern);
+    svg.appendChild(defs);
+    
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('width', width);
+    rect.setAttribute('height', height);
+    rect.setAttribute('fill', 'url(#grid)');
+    
+    svg.appendChild(rect);
+}
+
+// Enhanced vertical network graph functions
+function addVerticalGridBackground(svg, startX, width, height) {
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    const pattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
+    
+    pattern.setAttribute('id', 'verticalGrid');
+    pattern.setAttribute('width', '20');
+    pattern.setAttribute('height', '20');
+    pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+    
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M 20 0 L 0 0 0 20');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', '#21262d');
+    path.setAttribute('stroke-width', '1');
+    path.setAttribute('opacity', '0.3');
+    
+    pattern.appendChild(path);
+    defs.appendChild(pattern);
+    svg.appendChild(defs);
+    
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', startX);
+    rect.setAttribute('y', 0);
+    rect.setAttribute('width', width);
+    rect.setAttribute('height', height);
+    rect.setAttribute('fill', 'url(#verticalGrid)');
+    
+    svg.appendChild(rect);
+}
+
+function drawVerticalBranchLanes(svg, graphData, height) {
+    // Get all branches from both commits and the stored branch data
+    const branchesFromCommits = [...new Set(graphData.commits.map(c => c.branch))];
+    const allBranches = graphData.branches && graphData.branches.length > 0 ? 
+        [...new Set([...branchesFromCommits, ...graphData.branches.map(b => b.name)])] : 
+        branchesFromCommits;
+    
+    // Branch colors mapping
+    const branchColors = {
+        'main': '#1f6feb',
+        'master': '#1f6feb',
+        'feature/sorting': '#56d364',
+        'feature/search': '#f85149',
+        'hotfix/sorting-fix': '#d2a8ff'
+    };
+    
+    const featureColors = ['#56d364', '#f85149', '#d2a8ff', '#ffa657', '#ff7b72'];
+    let colorIndex = 0;
+    
+    allBranches.forEach((branchName, index) => {
+        const branchCommits = graphData.commits.filter(c => c.branch === branchName);
+        
+        // Calculate position and color
+        let x, color;
+        if (branchCommits.length > 0) {
+            x = branchCommits[0].x;
+            color = branchCommits[0].color;
+        } else {
+            // For branches without commits, calculate position
+            x = branchName === 'main' ? 80 : 80 - ((index) * 30);
+            color = branchColors[branchName] || featureColors[colorIndex % featureColors.length];
+            if (!branchColors[branchName]) colorIndex++;
+        }
+        
+        // Draw vertical branch lane
+        const lane = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        lane.setAttribute('x', x - 15);
+        lane.setAttribute('y', 0);
+        lane.setAttribute('width', 30);
+        lane.setAttribute('height', height);
+        lane.setAttribute('fill', color);
+        lane.setAttribute('opacity', '0.08');
+        lane.setAttribute('class', 'vertical-branch-lane');
+        
+        svg.appendChild(lane);
+        
+        // Draw vertical branch line
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', x);
+        line.setAttribute('y1', 0);
+        line.setAttribute('x2', x);
+        line.setAttribute('y2', height);
+        line.setAttribute('stroke', color);
+        line.setAttribute('stroke-width', '2');
+        line.setAttribute('opacity', '0.3');
+        line.setAttribute('class', 'vertical-branch-line');
+        
+        svg.appendChild(line);
+    });
+}
+
+function drawVerticalConnection(svg, connection) {
+    const strokeWidth = connection.strokeWidth || 2;
+    
+    if (connection.type === 'merge') {
+        // Curved line for merge connections (horizontal curve)
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const controlX = connection.to.x;
+        const controlY = connection.from.y + (connection.to.y - connection.from.y) * 0.7;
+        
+        const d = `M ${connection.from.x} ${connection.from.y} Q ${controlX} ${controlY} ${connection.to.x} ${connection.to.y}`;
+        
+        path.setAttribute('d', d);
+        path.setAttribute('stroke', connection.color);
+        path.setAttribute('stroke-width', strokeWidth);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-dasharray', '6,3');
+        path.setAttribute('class', 'commit-line merge-line');
+        path.setAttribute('opacity', '0.8');
+        
+        svg.appendChild(path);
+        
+    } else if (connection.type === 'branch-split') {
+        // Curved line for branch splits (horizontal curve)
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const controlX = connection.from.x;
+        const controlY = connection.from.y + (connection.to.y - connection.from.y) * 0.3;
+        
+        const d = `M ${connection.from.x} ${connection.from.y} Q ${controlX} ${controlY} ${connection.to.x} ${connection.to.y}`;
+        
+        path.setAttribute('d', d);
+        path.setAttribute('stroke', connection.color);
+        path.setAttribute('stroke-width', strokeWidth);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-dasharray', '3,2');
+        path.setAttribute('class', 'commit-line branch-split');
+        path.setAttribute('opacity', '0.7');
+        
+        svg.appendChild(path);
+        
+    } else {
+        // Straight vertical line for branch flow
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        
+        line.setAttribute('x1', connection.from.x);
+        line.setAttribute('y1', connection.from.y);
+        line.setAttribute('x2', connection.to.x);
+        line.setAttribute('y2', connection.to.y);
+        line.setAttribute('stroke', connection.color);
+        line.setAttribute('stroke-width', strokeWidth);
+        line.setAttribute('class', 'commit-line branch-flow');
+        line.setAttribute('opacity', '0.9');
+        
+        svg.appendChild(line);
+    }
+}
+
+function drawVerticalCommit(svg, commit) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'commit-node vertical-commit');
+    g.setAttribute('data-commit-id', commit.id);
+    
+    // Commit glow effect
+    const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    glow.setAttribute('cx', commit.x);
+    glow.setAttribute('cy', commit.y);
+    glow.setAttribute('r', commit.isMerge ? 12 : 10);
+    glow.setAttribute('fill', commit.color);
+    glow.setAttribute('opacity', '0.15');
+    glow.setAttribute('class', 'commit-glow');
+    
+    g.appendChild(glow);
+    
+    // Main commit circle
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', commit.x);
+    circle.setAttribute('cy', commit.y);
+    circle.setAttribute('r', commit.isMerge ? 7 : 5);
+    circle.setAttribute('fill', commit.color);
+    circle.setAttribute('stroke', '#0d1117');
+    circle.setAttribute('stroke-width', '2');
+    
+    if (commit.isMerge) {
+        circle.setAttribute('stroke-dasharray', '2,1');
+    }
+    
+    g.appendChild(circle);
+    
+    // Commit message (positioned to the right) - show complete file names
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', commit.x + 20);
+    text.setAttribute('y', commit.y + 4);
+    text.setAttribute('class', 'commit-message vertical');
+    text.setAttribute('text-anchor', 'start');
+    text.textContent = truncateText(commit.message, 40);
+    
+    g.appendChild(text);
+    
+    // Display filename from commit data or extract from message
+    let filename = null;
+    
+    // First try to get filename from commit.files array
+    if (commit.files && commit.files.length > 0) {
+        filename = commit.files[0]; // Show first file if multiple
+    } else {
+        // Fallback to extracting from commit message
+        filename = extractFilenameFromCommit(commit.message);
+    }
+    
+    if (filename) {
+        const fileText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        fileText.setAttribute('x', commit.x + 20);
+        fileText.setAttribute('y', commit.y + 18); // Position below commit message
+        fileText.setAttribute('class', 'commit-filename vertical');
+        fileText.setAttribute('text-anchor', 'start');
+        fileText.textContent = `📄 ${filename}`;
+        
+        g.appendChild(fileText);
+    }
+    
+    // Add commit data for tooltip
+    g.setAttribute('data-message', commit.message);
+    g.setAttribute('data-author', commit.author);
+    g.setAttribute('data-date', commit.date);
+    g.setAttribute('data-branch', commit.branch);
+    
+    svg.appendChild(g);
+}
+
+function addVerticalBranchLabels(svg, graphData) {
+    // Get all branches from both commits and the stored branch data
+    const branchesFromCommits = [...new Set(graphData.commits.map(c => c.branch))];
+    const allBranches = graphData.branches && graphData.branches.length > 0 ? 
+        [...new Set([...branchesFromCommits, ...graphData.branches.map(b => b.name)])] : 
+        branchesFromCommits;
+    
+    // Branch colors mapping
+    const branchColors = {
+        'main': '#1f6feb',
+        'master': '#1f6feb',
+        'feature/sorting': '#56d364',
+        'feature/search': '#f85149',
+        'hotfix/sorting-fix': '#d2a8ff'
+    };
+    
+    const featureColors = ['#56d364', '#f85149', '#d2a8ff', '#ffa657', '#ff7b72'];
+    let colorIndex = 0;
+    
+    allBranches.forEach((branchName, index) => {
+        const branchCommit = graphData.commits.find(c => c.branch === branchName);
+        
+        // Calculate position and color
+        let x, color;
+        if (branchCommit) {
+            x = branchCommit.x;
+            color = branchCommit.color;
+        } else {
+            // For branches without commits, calculate position
+            x = branchName === 'main' ? 80 : 80 - ((index) * 30);
+            color = branchColors[branchName] || featureColors[colorIndex % featureColors.length];
+            if (!branchColors[branchName]) colorIndex++;
+        }
+        const textWidth = Math.max(60, branchName.length * 6 + 10);
+        
+        // Branch label background
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', x - textWidth/2);
+        rect.setAttribute('y', 10);
+        rect.setAttribute('width', textWidth);
+        rect.setAttribute('height', 20);
+        rect.setAttribute('fill', color);
+        rect.setAttribute('opacity', '0.9');
+        rect.setAttribute('rx', 10);
+        
+        // Branch label text
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', x);
+        text.setAttribute('y', 24);
+        text.setAttribute('class', 'branch-label vertical');
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('fill', '#ffffff');
+        text.setAttribute('font-weight', 'bold');
+        text.setAttribute('font-size', '10px');
+        text.textContent = branchName;
+        
+        svg.appendChild(rect);
+        svg.appendChild(text);
+    });
+}
+
+function drawBranchLanes(svg, graphData, width) {
+    const branches = [...new Set(graphData.commits.map(c => c.branch))];
+    
+    branches.forEach(branchName => {
+        const branchCommits = graphData.commits.filter(c => c.branch === branchName);
+        if (branchCommits.length === 0) return;
+        
+        const y = branchCommits[0].y;
+        const color = branchCommits[0].color;
+        
+        // Draw branch lane background
+        const lane = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        lane.setAttribute('x', 0);
+        lane.setAttribute('y', y - 30);
+        lane.setAttribute('width', width);
+        lane.setAttribute('height', 60);
+        lane.setAttribute('fill', color);
+        lane.setAttribute('opacity', '0.05');
+        lane.setAttribute('class', 'branch-lane');
+        
+        svg.appendChild(lane);
+    });
+}
+
+function drawEnhancedConnection(svg, connection) {
+    const strokeWidth = connection.strokeWidth || 2;
+    
+    if (connection.type === 'merge') {
+        // Enhanced curved line for merge connections
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const controlX = connection.from.x + (connection.to.x - connection.from.x) * 0.7;
+        const controlY = connection.from.y;
+        
+        const d = `M ${connection.from.x} ${connection.from.y} Q ${controlX} ${controlY} ${connection.to.x} ${connection.to.y}`;
+        
+        path.setAttribute('d', d);
+        path.setAttribute('stroke', connection.color);
+        path.setAttribute('stroke-width', strokeWidth);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-dasharray', '8,4');
+        path.setAttribute('class', 'commit-line merge-line');
+        path.setAttribute('opacity', '0.8');
+        
+        svg.appendChild(path);
+        
+        // Add merge arrow
+        const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        const arrowSize = 6;
+        const angle = Math.atan2(connection.to.y - connection.from.y, connection.to.x - connection.from.x);
+        const arrowX = connection.to.x - arrowSize * Math.cos(angle);
+        const arrowY = connection.to.y - arrowSize * Math.sin(angle);
+        
+        const points = [
+            [connection.to.x, connection.to.y],
+            [arrowX - arrowSize * Math.sin(angle), arrowY + arrowSize * Math.cos(angle)],
+            [arrowX + arrowSize * Math.sin(angle), arrowY - arrowSize * Math.cos(angle)]
+        ].map(p => p.join(',')).join(' ');
+        
+        arrowHead.setAttribute('points', points);
+        arrowHead.setAttribute('fill', connection.color);
+        arrowHead.setAttribute('class', 'merge-arrow');
+        
+        svg.appendChild(arrowHead);
+        
+    } else if (connection.type === 'branch-split') {
+        // Curved line for branch splits
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const controlX = connection.from.x + (connection.to.x - connection.from.x) * 0.3;
+        const controlY = connection.to.y;
+        
+        const d = `M ${connection.from.x} ${connection.from.y} Q ${controlX} ${controlY} ${connection.to.x} ${connection.to.y}`;
+        
+        path.setAttribute('d', d);
+        path.setAttribute('stroke', connection.color);
+        path.setAttribute('stroke-width', strokeWidth);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-dasharray', '4,2');
+        path.setAttribute('class', 'commit-line branch-split');
+        path.setAttribute('opacity', '0.7');
+        
+        svg.appendChild(path);
+        
+    } else {
+        // Enhanced straight line for branch flow
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        
+        line.setAttribute('x1', connection.from.x);
+        line.setAttribute('y1', connection.from.y);
+        line.setAttribute('x2', connection.to.x);
+        line.setAttribute('y2', connection.to.y);
+        line.setAttribute('stroke', connection.color);
+        line.setAttribute('stroke-width', strokeWidth);
+        line.setAttribute('class', 'commit-line branch-flow');
+        line.setAttribute('opacity', '0.9');
+        
+        svg.appendChild(line);
+    }
+}
+
+function drawEnhancedCommit(svg, commit) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'commit-node enhanced-commit');
+    g.setAttribute('data-commit-id', commit.id);
+    
+    // Commit glow effect
+    const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    glow.setAttribute('cx', commit.x);
+    glow.setAttribute('cy', commit.y);
+    glow.setAttribute('r', commit.isMerge ? 12 : 10);
+    glow.setAttribute('fill', commit.color);
+    glow.setAttribute('opacity', '0.2');
+    glow.setAttribute('class', 'commit-glow');
+    
+    g.appendChild(glow);
+    
+    // Main commit circle
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', commit.x);
+    circle.setAttribute('cy', commit.y);
+    circle.setAttribute('r', commit.isMerge ? 8 : 6);
+    circle.setAttribute('fill', commit.color);
+    circle.setAttribute('stroke', '#0d1117');
+    circle.setAttribute('stroke-width', '2');
+    
+    if (commit.isMerge) {
+        circle.setAttribute('stroke-dasharray', '2,2');
+    }
+    
+    g.appendChild(circle);
+    
+    // Commit message (positioned below)
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', commit.x);
+    text.setAttribute('y', commit.y + 30);
+    text.setAttribute('class', 'commit-message enhanced');
+    text.setAttribute('text-anchor', 'middle');
+    text.textContent = truncateText(commit.message, 12);
+    
+    g.appendChild(text);
+    
+    // Commit hash above
+    const hashText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    hashText.setAttribute('x', commit.x);
+    hashText.setAttribute('y', commit.y - 20);
+    hashText.setAttribute('class', 'commit-hash enhanced');
+    hashText.setAttribute('text-anchor', 'middle');
+    hashText.textContent = `${commit.id.slice(-6)}`;
+    
+    g.appendChild(hashText);
+    
+    // Add commit data for tooltip
+    g.setAttribute('data-message', commit.message);
+    g.setAttribute('data-author', commit.author);
+    g.setAttribute('data-date', commit.date);
+    g.setAttribute('data-branch', commit.branch);
+    
+    svg.appendChild(g);
+}
+
+function addNetworkBranchLabels(svg, graphData) {
+    const branches = [...new Set(graphData.commits.map(c => c.branch))];
+    
+    branches.forEach(branchName => {
+        const branchCommit = graphData.commits.find(c => c.branch === branchName);
+        if (!branchCommit) return;
+        
+        const y = branchCommit.y;
+        const color = branchCommit.color;
+        const textWidth = Math.max(80, branchName.length * 8 + 20);
+        
+        // Branch label background
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', 20);
+        rect.setAttribute('y', y - 12);
+        rect.setAttribute('width', textWidth);
+        rect.setAttribute('height', 24);
+        rect.setAttribute('fill', color);
+        rect.setAttribute('opacity', '0.9');
+        rect.setAttribute('rx', 12);
+        
+        // Branch label text
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', 20 + textWidth / 2);
+        text.setAttribute('y', y + 4);
+        text.setAttribute('class', 'branch-label network');
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('fill', '#ffffff');
+        text.setAttribute('font-weight', 'bold');
+        text.textContent = branchName;
+        
+        svg.appendChild(rect);
+        svg.appendChild(text);
+    });
+}
+
+function addTimelineMarkers(svg, graphData, width) {
+    if (graphData.commits.length === 0) return;
+    
+    // Add timeline at the top
+    const timelineY = 30;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', 100);
+    line.setAttribute('y1', timelineY);
+    line.setAttribute('x2', width - 100);
+    line.setAttribute('y2', timelineY);
+    line.setAttribute('stroke', '#30363d');
+    line.setAttribute('stroke-width', '2');
+    
+    svg.appendChild(line);
+    
+    // Add time markers
+    const uniqueDates = [...new Set(graphData.commits.map(c => c.date))];
+    uniqueDates.forEach((date, index) => {
+        const x = 150 + (index * 200);
+        
+        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        marker.setAttribute('cx', x);
+        marker.setAttribute('cy', timelineY);
+        marker.setAttribute('r', 3);
+        marker.setAttribute('fill', '#58a6ff');
+        
+        const dateText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        dateText.setAttribute('x', x);
+        dateText.setAttribute('y', timelineY - 10);
+        dateText.setAttribute('class', 'timeline-date');
+        dateText.setAttribute('text-anchor', 'middle');
+        dateText.setAttribute('font-size', '10px');
+        dateText.setAttribute('fill', '#8b949e');
+        dateText.textContent = date.split(' ').slice(0, 2).join(' ');
+        
+        svg.appendChild(marker);
+        svg.appendChild(dateText);
+    });
+}
+
+function drawCommit(svg, commit) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'commit-node');
+    g.setAttribute('data-commit-id', commit.id);
+    
+    // Commit circle
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', commit.x);
+    circle.setAttribute('cy', commit.y);
+    circle.setAttribute('r', commit.isMerge ? 8 : 6);
+    circle.setAttribute('fill', commit.color);
+    circle.setAttribute('stroke', '#0d1117');
+    circle.setAttribute('stroke-width', '2');
+    
+    g.appendChild(circle);
+    
+    // Commit message (positioned below the circle to avoid overlap)
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', commit.x);
+    text.setAttribute('y', commit.y + 25);
+    text.setAttribute('class', 'commit-message');
+    text.setAttribute('text-anchor', 'middle');
+    text.textContent = truncateText(commit.message, 15);
+    
+    g.appendChild(text);
+    
+    // Add commit hash/ID above the circle
+    const hashText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    hashText.setAttribute('x', commit.x);
+    hashText.setAttribute('y', commit.y - 15);
+    hashText.setAttribute('class', 'commit-hash');
+    hashText.setAttribute('text-anchor', 'middle');
+    hashText.textContent = `#${commit.id.slice(-3)}`;
+    
+    g.appendChild(hashText);
+    
+    // Add commit data for tooltip
+    g.setAttribute('data-message', commit.message);
+    g.setAttribute('data-author', commit.author);
+    g.setAttribute('data-date', commit.date);
+    g.setAttribute('data-branch', commit.branch);
+    
+    svg.appendChild(g);
+}
+
+function addBranchLabels(svg, graphData) {
+    const branches = [...new Set(graphData.commits.map(c => c.branch))];
+    
+    branches.forEach((branchName) => {
+        // Find the first commit on this branch to get the Y position
+        const branchCommit = graphData.commits.find(c => c.branch === branchName);
+        if (!branchCommit) return;
+        
+        const y = branchCommit.y;
+        const textWidth = branchName.length * 6 + 10; // Estimate text width
+        
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', 10);
+        rect.setAttribute('y', y - 10);
+        rect.setAttribute('width', textWidth);
+        rect.setAttribute('height', 20);
+        rect.setAttribute('fill', '#21262d');
+        rect.setAttribute('stroke', '#30363d');
+        rect.setAttribute('rx', 3);
+        
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', 10 + textWidth / 2);
+        text.setAttribute('y', y + 4);
+        text.setAttribute('class', 'branch-label');
+        text.setAttribute('text-anchor', 'middle');
+        text.textContent = branchName;
+        
+        svg.appendChild(rect);
+        svg.appendChild(text);
+    });
+}
+
+function addCommitGraphTooltip() {
+    // Remove existing tooltip
+    const existingTooltip = document.querySelector('.commit-tooltip');
+    if (existingTooltip) {
+        existingTooltip.remove();
+    }
+    
+    // Create tooltip element
+    const tooltip = document.createElement('div');
+    tooltip.className = 'commit-tooltip';
+    document.body.appendChild(tooltip);
+    
+    // Add event listeners to commit nodes
+    const commitNodes = document.querySelectorAll('.commit-node');
+    
+    commitNodes.forEach(node => {
+        node.addEventListener('mouseenter', (e) => {
+            const message = e.currentTarget.getAttribute('data-message');
+            const author = e.currentTarget.getAttribute('data-author');
+            const date = e.currentTarget.getAttribute('data-date');
+            const branch = e.currentTarget.getAttribute('data-branch');
+            
+            tooltip.innerHTML = `
+                <div class="tooltip-message">${message}</div>
+                <div class="tooltip-author">by ${author}</div>
+                <div class="tooltip-date">${date}</div>
+                <div class="tooltip-branch">Branch: ${branch}</div>
+            `;
+            
+            // Set tooltip position once on enter to prevent shaking
+            tooltip.style.left = (e.pageX + 15) + 'px';
+            tooltip.style.top = (e.pageY - 30) + 'px';
+            
+            tooltip.classList.add('visible');
+        });
+        
+        node.addEventListener('mouseleave', () => {
+            tooltip.classList.remove('visible');
+        });
+    });
+}
+
+function truncateText(text, maxLength) {
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+}
+
+// Extract filename from commit message
+function extractFilenameFromCommit(message) {
+    // Common patterns for file operations in commit messages
+    const patterns = [
+        /Added\s+(.+\.\w+)/i,           // "Added filename.ext"
+        /Updated\s+(.+\.\w+)/i,        // "Updated filename.ext"
+        /Modified\s+(.+\.\w+)/i,       // "Modified filename.ext"
+        /Deleted\s+(.+\.\w+)/i,        // "Deleted filename.ext"
+        /Removed\s+(.+\.\w+)/i,        // "Removed filename.ext"
+        /Uploaded\s+(.+\.\w+)/i,       // "Uploaded filename.ext"
+        /Renamed\s+.+\s+to\s+(.+\.\w+)/i, // "Renamed old.ext to new.ext"
+        /Created\s+file:\s*(.+\.\w+)/i, // "Created file: filename.ext"
+        /Updated\s+file:\s*(.+\.\w+)/i, // "Updated file: filename.ext"
+        /:\s*(.+\.\w+)/,               // "Action: filename.ext"
+        /(.+\.\w+)$/                   // filename.ext at end of message
+    ];
+    
+    for (const pattern of patterns) {
+        const match = message.match(pattern);
+        if (match && match[1]) {
+            // Clean up the filename (remove extra spaces, quotes, etc.)
+            let filename = match[1].trim();
+            filename = filename.replace(/['"]/g, ''); // Remove quotes
+            
+            // Only return if it looks like a valid filename
+            if (filename.includes('.') && filename.length > 0 && filename.length < 100) {
+                return filename;
+            }
+        }
+    }
+    
+    return null;
+}
+
+// Render commit list in real-time
+function renderCommitList() {
+    const repo = getCurrentRepository();
+    if (!repo) return;
+    
+    const commitListContainer = document.querySelector('.commit-list-container');
+    if (!commitListContainer) return;
+    
+    const commits = repo.commits || [];
+    
+    if (commits.length === 0) {
+        commitListContainer.innerHTML = '<div class="no-commits-message">No commits yet</div>';
+        return;
+    }
+    
+    // Sort commits by timestamp (newest first)
+    const sortedCommits = commits.sort((a, b) => {
+        const timeA = a.timestamp || 0;
+        const timeB = b.timestamp || 0;
+        return timeB - timeA;
+    });
+    
+    commitListContainer.innerHTML = '';
+    
+    sortedCommits.forEach((commit, index) => {
+        const commitItem = document.createElement('div');
+        commitItem.className = 'commit-item';
+        commitItem.innerHTML = `
+            <div class="commit-info">
+                <div class="commit-header">
+                    <span class="commit-message-text">${commit.message}</span>
+                    <span class="commit-branch-badge" style="background-color: ${getBranchColor(commit.branch)}">${commit.branch || 'main'}</span>
+                </div>
+                <div class="commit-meta">
+                    <span class="commit-author">by ${commit.author}</span>
+                    <span class="commit-date">${commit.date}</span>
+                </div>
+            </div>
+            <div class="commit-actions">
+                <button class="commit-hash-btn" title="Commit Hash">#${(commit.timestamp || index).toString().slice(-6)}</button>
+            </div>
+        `;
+        
+        commitListContainer.appendChild(commitItem);
+    });
+}
+
+function getBranchColor(branchName) {
+    const branchColors = {
+        'main': '#1f6feb',
+        'master': '#1f6feb',
+        'feature/sorting': '#56d364',
+        'feature/search': '#f85149',
+        'hotfix/sorting-fix': '#d2a8ff'
+    };
+    return branchColors[branchName] || '#56d364';
+}
+
+function getCurrentRepository() {
+    // Get current repository from URL or localStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    const repoName = urlParams.get('repo') || 'LeetCode'; // Default repo name
+    
+    const repositories = JSON.parse(localStorage.getItem('githubSimulatorData')) || [];
+    return repositories.find(repo => repo.name === repoName);
+}
+
+// Real-time updates for commit graph
+function updateCommitGraphRealTime() {
+    if (commitGraphVisible) {
+        renderCommitGraph();
+    }
+}
+
+// Enhanced commit creation with graph update
+function createCommitWithGraphUpdate(message, author, branch = 'main', files = []) {
+    const repo = getCurrentRepository();
+    if (!repo) return;
+    
+    // Add new commit
+    const newCommit = {
+        message: message,
+        author: author,
+        date: new Date().toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        }),
+        branch: branch,
+        timestamp: Date.now(), // Add timestamp for real-time ordering
+        files: files // Add files array to store affected files
+    };
+    
+    if (!repo.commits) {
+        repo.commits = [];
+    }
+    
+    repo.commits.push(newCommit);
+    
+    // Sync global repositories array with latest commit data
+    const globalRepoIndex = repositories.findIndex(r => r.name === repo.name);
+    if (globalRepoIndex >= 0) {
+        repositories[globalRepoIndex] = repo;
+    } else {
+        repositories.push(repo);
+    }
+    
+    // Also add commit to the specific branch's commits array
+    if (repo.branches) {
+        const targetBranch = repo.branches.find(b => b.name === branch);
+        if (targetBranch) {
+            if (!targetBranch.commits) {
+                targetBranch.commits = [];
+            }
+            // Add to branch-specific commits (avoid duplicates)
+            const branchCommitExists = targetBranch.commits.some(c => 
+                c.message === newCommit.message && 
+                c.timestamp === newCommit.timestamp
+            );
+            if (!branchCommitExists) {
+                targetBranch.commits.push({...newCommit}); // Deep copy
+            }
+        }
+    }
+    
+    // Update localStorage
+    const repositories = JSON.parse(localStorage.getItem('githubSimulatorData')) || [];
+    const repoIndex = repositories.findIndex(r => r.name === repo.name);
+    if (repoIndex >= 0) {
+        repositories[repoIndex] = repo;
+        localStorage.setItem('githubSimulatorData', JSON.stringify(repositories));
+    }
+    
+    // Update commit graph if visible with animation
+    updateCommitGraphRealTime();
+    
+    // Update commit list if visible
+    if (document.querySelector('.commit-list-container')) {
+        renderCommitList();
+    }
+    
+    // Update commits view if the commits section is currently visible
+    const commitsSection = document.getElementById('commits-section');
+    if (commitsSection && commitsSection.style.display !== 'none') {
+        renderCommits(repo.commits || []);
+    }
+    
+    // Show notification
+    showNotification(`New commit added: ${message}`, 'success');
+}
+
+// Function to automatically create commits when files are modified
+function createAutoCommit(action, fileName, branch = 'main') {
+    const messages = {
+        'create': `Added file: ${fileName}`,
+        'edit': `Updated file: ${fileName}`,
+        'delete': `Removed file: ${fileName}`,
+        'upload': `Uploaded file: ${fileName}`,
+        'rename': `Renamed file: ${fileName}`
+    };
+    
+    const message = messages[action] || `Modified file: ${fileName}`;
+    createCommitWithGraphUpdate(message, currentUser, branch, [fileName]);
+}
+
+// Enhanced branch creation with graph update
+function createBranchWithGraphUpdate(branchName, parentBranch = 'main') {
+    const repo = getCurrentRepository();
+    if (!repo) return;
+    
+    if (!repo.branches) {
+        repo.branches = [{ name: 'main', parent: '', current: true }];
+    }
+    
+    // Check if branch already exists
+    if (repo.branches.find(b => b.name === branchName)) {
+        showNotification(`Branch '${branchName}' already exists`, 'error');
+        return;
+    }
+    
+    // Add new branch
+    const newBranch = {
+        name: branchName,
+        parent: parentBranch,
+        current: false
+    };
+    
+    repo.branches.push(newBranch);
+    
+    // Update localStorage
+    const repositories = JSON.parse(localStorage.getItem('githubSimulatorData')) || [];
+    const repoIndex = repositories.findIndex(r => r.name === repo.name);
+    if (repoIndex >= 0) {
+        repositories[repoIndex] = repo;
+        localStorage.setItem('githubSimulatorData', JSON.stringify(repositories));
+    }
+    
+    // Update commit graph if visible
+    updateCommitGraphRealTime();
+    
+    // Show notification
+    showNotification(`New branch created: ${branchName}`, 'success');
+}
+
 // --- Backend Communication ---
 async function loadDataFromBackend() {
     // First try to load from localStorage (user's changes)
@@ -61,7 +1286,33 @@ async function loadDataFromBackend() {
             repositories = data.repositories || [];
             console.log('Data loaded from C++ backend:', repositories);
             // Save to localStorage for persistence
+            
+            // Populate branch-specific commits from main commits array
+            repositories.forEach(repo => {
+                if (repo.commits && repo.branches) {
+                    repo.commits.forEach(commit => {
+                        const branchName = commit.branch || 'main';
+                        const targetBranch = repo.branches.find(b => b.name === branchName);
+                        if (targetBranch) {
+                            if (!targetBranch.commits) {
+                                targetBranch.commits = [];
+                            }
+                            // Add commit to branch if it doesn't already exist
+                            const exists = targetBranch.commits.some(c => 
+                                c.message === commit.message && 
+                                c.author === commit.author && 
+                                c.date === commit.date
+                            );
+                            if (!exists) {
+                                targetBranch.commits.push({...commit});
+                            }
+                        }
+                    });
+                }
+            });
+            
             localStorage.setItem('githubSimulatorData', JSON.stringify(repositories));
+            console.log('Fallback data loaded successfully with branch-specific commits');
         } else {
             console.log('No data.json found, using fallback data');
             loadFallbackData();
@@ -81,7 +1332,30 @@ function loadFallbackData() {
             isPrivate: false,
             currentBranch: 'main',
             branches: [
-                { name: 'main', parent: '', current: true }
+                { 
+                    name: 'main', 
+                    parent: '', 
+                    current: true,
+                    commits: []
+                },
+                { 
+                    name: 'feature/sorting', 
+                    parent: 'main', 
+                    current: false,
+                    commits: []
+                },
+                { 
+                    name: 'feature/search', 
+                    parent: 'main', 
+                    current: false,
+                    commits: []
+                },
+                { 
+                    name: 'hotfix/sorting-fix', 
+                    parent: 'main', 
+                    current: false,
+                    commits: []
+                }
             ],
             files: [
                 {
@@ -169,14 +1443,87 @@ Happy coding! 🚀`
             ],
             commits: [
                 {
-                    message: 'First commit: Added LeetCodeSolutions.js',
+                    message: 'Initial commit: Project setup',
                     author: 'Shiwani',
-                    date: 'October 7, 2025'
+                    date: 'October 5, 2025',
+                    branch: 'main',
+                    timestamp: Date.now() - 432000000, // 5 days ago
+                    files: ['README.md']
                 },
                 {
-                    message: 'Added README.md with project documentation',
+                    message: 'Added file: LeetCodeSolutions.js',
                     author: 'Shiwani',
-                    date: 'October 7, 2025'
+                    date: 'October 6, 2025',
+                    branch: 'main',
+                    timestamp: Date.now() - 345600000,
+                    files: ['LeetCodeSolutions.js']
+                },
+                {
+                    message: 'Feature: Added array sorting algorithms',
+                    author: 'Shiwani',
+                    date: 'October 6, 2025',
+                    branch: 'feature/sorting',
+                    timestamp: Date.now() - 259200000,
+                    files: ['SortingAlgorithms.js']
+                },
+                {
+                    message: 'Fix: Corrected bubble sort implementation',
+                    author: 'Shiwani',
+                    date: 'October 6, 2025',
+                    branch: 'feature/sorting',
+                    timestamp: Date.now() - 172800000
+                },
+                {
+                    message: 'Merge: Integrated sorting algorithms',
+                    author: 'Shiwani',
+                    date: 'October 7, 2025',
+                    branch: 'main',
+                    timestamp: Date.now() - 86400000
+                },
+                {
+                    message: 'Added file: README.md',
+                    author: 'Shiwani',
+                    date: 'October 7, 2025',
+                    branch: 'main',
+                    timestamp: Date.now() - 43200000
+                },
+                {
+                    message: 'Added file: BinarySearch.js',
+                    author: 'Shiwani',
+                    date: 'October 8, 2025',
+                    branch: 'feature/search',
+                    timestamp: Date.now() - 21600000,
+                    files: ['BinarySearch.js']
+                },
+                {
+                    message: 'Updated file: BinarySearch.js',
+                    author: 'Shiwani',
+                    date: 'October 8, 2025',
+                    branch: 'feature/search',
+                    timestamp: Date.now() - 10800000,
+                    files: ['BinarySearch.js']
+                },
+                {
+                    message: 'Merge: Integrated search algorithms',
+                    author: 'Shiwani',
+                    date: 'October 9, 2025',
+                    branch: 'main',
+                    timestamp: Date.now() - 7200000
+                },
+                {
+                    message: 'Updated file: SortingAlgorithms.js',
+                    author: 'Shiwani',
+                    date: 'October 9, 2025',
+                    branch: 'hotfix/sorting-fix',
+                    timestamp: Date.now() - 3600000,
+                    files: ['SortingAlgorithms.js']
+                },
+                {
+                    message: 'Merge: Applied sorting hotfix',
+                    author: 'Shiwani',
+                    date: 'October 10, 2025',
+                    branch: 'main',
+                    timestamp: Date.now() - 1800000
                 }
             ]
         },
@@ -218,8 +1565,34 @@ This is private content that only the owner should see.`
             ]
         }
     ];
+    
+    // Populate branch-specific commits from main commits array
+    repositories.forEach(repo => {
+        if (repo.commits && repo.branches) {
+            repo.commits.forEach(commit => {
+                const branchName = commit.branch || 'main';
+                const targetBranch = repo.branches.find(b => b.name === branchName);
+                if (targetBranch) {
+                    if (!targetBranch.commits) {
+                        targetBranch.commits = [];
+                    }
+                    // Add commit to branch if it doesn't already exist
+                    const exists = targetBranch.commits.some(c => 
+                        c.message === commit.message && 
+                        c.author === commit.author && 
+                        c.date === commit.date
+                    );
+                    if (!exists) {
+                        targetBranch.commits.push({...commit});
+                    }
+                }
+            });
+        }
+    });
+    
     // Save fallback data to localStorage
     localStorage.setItem('githubSimulatorData', JSON.stringify(repositories));
+    console.log('Fallback data loaded with branch-specific commits populated');
 }
 
 // Simulate API calls to C++ backend and save to localStorage
@@ -901,7 +2274,15 @@ async function createNewFile() {
         
         currentRepo.files.push(newFile);
         
-        // Also add to current branch's files
+        // Save to localStorage immediately after adding file
+        const repositories = JSON.parse(localStorage.getItem('githubSimulatorData')) || [];
+        const repoIndex = repositories.findIndex(r => r.name === currentRepo.name);
+        if (repoIndex >= 0) {
+            repositories[repoIndex] = currentRepo;
+            localStorage.setItem('githubSimulatorData', JSON.stringify(repositories));
+        }
+        
+        // Create auto-commit for the new files
         const currentBranchData = currentRepo.branches?.find(b => b.current);
         if (currentBranchData) {
             if (!currentBranchData.files) {
@@ -920,12 +2301,9 @@ async function createNewFile() {
             });
         }
         
-        // Add commit to global commits
-        currentRepo.commits.push({
-            message: commitMessage || `Created file: ${fullFileName}`,
-            author: 'Shiwani',
-            date: new Date().toLocaleDateString()
-        });
+        // Create auto-commit for the new file
+        const autoCommitMessage = commitMessage || `Added ${fullFileName}`;
+        createCommitWithGraphUpdate(autoCommitMessage, currentUser, currentRepo.currentBranch || 'main', [fullFileName]);
         
         // Call backend API
         await callBackendAPI('POST', `/api/repositories/${currentRepoName}/files`, 
@@ -992,12 +2370,12 @@ async function saveFileChanges() {
                 });
             }
             
-            // Add commit for the change to global commits
-            currentRepo.commits.push({
-                message: `Updated file: ${oldName} → ${fileName}`,
-                author: 'Shiwani',
-                date: new Date().toLocaleDateString()
-            });
+            // Create auto-commit for the file change
+            const action = oldName !== fileName ? 'rename' : 'edit';
+            const commitMessage = oldName !== fileName ? 
+                `Renamed ${oldName} to ${fileName}` : 
+                `Updated ${fileName}`;
+            createCommitWithGraphUpdate(commitMessage, currentUser, currentRepo.currentBranch || 'main', [fileName]);
         }
     }
     
@@ -1028,17 +2406,13 @@ async function confirmDeleteFile() {
             }
             currentBranchData.commits.push({
                 message: `Deleted file: ${currentFileName}`,
-                author: 'Shiwani',
+                author: currentUser,
                 date: new Date().toLocaleDateString()
             });
         }
         
-        // Add commit to global commits
-        currentRepo.commits.push({
-            message: `Deleted file: ${currentFileName}`,
-            author: 'Shiwani',
-            date: new Date().toLocaleDateString()
-        });
+        // Create auto-commit for the file deletion
+        createCommitWithGraphUpdate(`Removed ${currentFileName}`, currentUser, currentRepo.currentBranch || 'main', [currentFileName]);
         
         // Call backend API
         await callBackendAPI('DELETE', `/api/repositories/${currentRepoName}/files/${currentFileName}`);
@@ -1081,11 +2455,17 @@ async function uploadFile() {
                 content: content
             });
             
-            currentRepo.commits.push({
-                message: commitMessage || `Uploaded file: ${fullFileName}`,
-                author: 'Shiwani',
-                date: new Date().toLocaleDateString()
-            });
+            // Save to localStorage immediately after adding file
+            const repositories = JSON.parse(localStorage.getItem('githubSimulatorData')) || [];
+            const repoIndex = repositories.findIndex(r => r.name === currentRepo.name);
+            if (repoIndex >= 0) {
+                repositories[repoIndex] = currentRepo;
+                localStorage.setItem('githubSimulatorData', JSON.stringify(repositories));
+            }
+            
+            // Create auto-commit for the uploaded file
+            const autoCommitMessage = commitMessage || `Uploaded ${fullFileName}`;
+            createCommitWithGraphUpdate(autoCommitMessage, currentUser, currentRepo.currentBranch || 'main', [fullFileName]);
             
             // Save changes
             await callBackendAPI('POST', `/api/repositories/${currentRepoName}/files`, 
@@ -1587,6 +2967,12 @@ async function createNewBranch() {
     } catch (error) {
         console.error('Error creating branch:', error);
     }
+    
+    // Update commit graph if visible
+    updateCommitGraphRealTime();
+    
+    // Create initial commit for the new branch
+    createCommitWithGraphUpdate(`Created branch ${newBranchName} from ${baseBranch}`, currentUser, newBranchName);
     
     closeModal('createBranchModal');
     showSection('branches');
