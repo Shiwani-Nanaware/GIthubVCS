@@ -15,6 +15,15 @@
             GitVersion
         </div>
         <div class="header-actions">
+            <div class="user-switcher">
+                <span class="current-user">👤 <span id="current-user-name">Shiwani</span></span>
+                <button class="icon-btn" onclick="toggleUser()" title="Switch User (Demo)">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.5-4h-7l-2.5 4H13v6h7zM12.5 11.5c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5S11 9.17 11 10s.67 1.5 1.5 1.5zM5.5 6c1.11 0 2-.89 2-2s-.89-2-2-2-2 .89-2 2 .89 2 2 2zm2.5 16v-7H6l1.5-3h4L13 12H8v7h4z"/>
+                    </svg>
+                    <span>Switch</span>
+                </button>
+            </div>
             <button class="icon-btn" onclick="performUndo()" title="Undo">
                 <svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12.5 8c-2.65 0-5.1.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.09 0 5.67 1.93 6.64 4.54l2.25-.89C21.08 11.23 17.15 8 12.5 8z"/>

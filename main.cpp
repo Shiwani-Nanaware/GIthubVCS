@@ -416,10 +416,12 @@ struct BranchManager {
 
 struct Repository {
     string repoName;
+    string description;
+    bool isPrivate;
     BranchManager branchManager;
     queue<string> tasks;
     Repository* next;
-    Repository(string n) : repoName(n), next(NULL) {}
+    Repository(string n, string desc = "", bool priv = false) : repoName(n), description(desc), isPrivate(priv), next(NULL) {}
     
     File* getCurrentFiles() {
         Branch* current = branchManager.getCurrentBranch();
@@ -472,15 +474,15 @@ public:
     }
 
     // -------------------- Repository Operations --------------------
-    void createRepository(string name) {
+    void createRepository(string name, string description = "", bool isPrivate = false) {
         if (repoBST.search(repoBST.root, name)) { cout << "Repository already exists!\n"; return; }
-        Repository* newRepo = new Repository(name);
+        Repository* newRepo = new Repository(name, description, isPrivate);
         newRepo->next = head;
         head = newRepo;
         repoBST.root = repoBST.insert(repoBST.root, name);
-        commits.addCommit("Created Repository: " + name, currentUser);
+        commits.addCommit("Created Repository: " + name + (isPrivate ? " (Private)" : " (Public)"), currentUser);
         undoStack.push({"deleteRepo", name, "", ""});
-        cout << "Repository '" << name << "' created.\n";
+        cout << "Repository '" << name << "' created " << (isPrivate ? "(Private)" : "(Public)") << ".\n";
     }
 
     void deleteRepository(string name) {
@@ -939,8 +941,8 @@ public:
         while (temp) {
             if (!first) json << ",";
             json << "{\"name\":\"" << temp->repoName 
-                 << "\",\"description\":\"Repository\",\"createdDate\":\"" << getCurrentDate() 
-                 << "\",\"isPrivate\":false,\"currentBranch\":\"" << temp->branchManager.currentBranch 
+                 << "\",\"description\":\"" << (temp->description.empty() ? "Repository" : temp->description) << "\",\"createdDate\":\"" << getCurrentDate() 
+                 << "\",\"isPrivate\":" << (temp->isPrivate ? "true" : "false") << ",\"currentBranch\":\"" << temp->branchManager.currentBranch 
                  << "\",\"branches\":" << temp->branchManager.getBranchesJSON().substr(1, temp->branchManager.getBranchesJSON().length()-2) // Remove outer braces
                  << ",\"files\":[";
             
@@ -1077,13 +1079,30 @@ public:
             return getStacksJSON();
         }
         else if (method == "POST" && endpoint == "/api/repositories") {
-            // Parse repository name from data (simplified)
-            size_t pos = data.find("name=");
-            if (pos != string::npos) {
-                string name = data.substr(pos + 5);
-                size_t endPos = name.find("&");
-                if (endPos != string::npos) name = name.substr(0, endPos);
-                createRepository(name);
+            // Parse repository data
+            string name = "", description = "";
+            bool isPrivate = false;
+            
+            size_t namePos = data.find("name=");
+            if (namePos != string::npos) {
+                size_t nameEnd = data.find("&", namePos);
+                name = data.substr(namePos + 5, nameEnd == string::npos ? string::npos : nameEnd - namePos - 5);
+            }
+            
+            size_t descPos = data.find("description=");
+            if (descPos != string::npos) {
+                size_t descEnd = data.find("&", descPos);
+                description = data.substr(descPos + 12, descEnd == string::npos ? string::npos : descEnd - descPos - 12);
+            }
+            
+            size_t privPos = data.find("isPrivate=");
+            if (privPos != string::npos) {
+                string privValue = data.substr(privPos + 10, 4); // "true" or "fals"
+                isPrivate = (privValue == "true");
+            }
+            
+            if (!name.empty()) {
+                createRepository(name, description, isPrivate);
                 saveToFile();
                 return "{\"success\":true,\"message\":\"Repository created\"}";
             }

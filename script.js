@@ -6,6 +6,46 @@ let currentFileName = '';
 let undoStack = [];
 let redoStack = [];
 
+// --- Access Control System ---
+let currentUser = 'Shiwani'; // Default user - in a real system this would come from authentication
+let isOwner = true; // For demo purposes, assume current user is the owner
+
+// Check if user has access to a repository
+function hasRepositoryAccess(repo) {
+    // Public repositories are accessible to everyone
+    if (!repo.isPrivate) {
+        return true;
+    }
+    
+    // Private repositories are only accessible to the owner
+    // In a real system, this would check user permissions/collaborators
+    return isOwner;
+}
+
+// Filter repositories based on access control
+function getAccessibleRepositories(repos) {
+    return repos.filter(repo => hasRepositoryAccess(repo));
+}
+
+// Toggle user for demonstration purposes
+function toggleUser() {
+    if (currentUser === 'Shiwani') {
+        currentUser = 'Guest';
+        isOwner = false;
+    } else {
+        currentUser = 'Shiwani';
+        isOwner = true;
+    }
+    
+    // Update UI
+    document.getElementById('current-user-name').textContent = currentUser;
+    
+    // Refresh dashboard to apply access control
+    renderDashboard();
+    
+    showNotification(`Switched to user: ${currentUser}`, 'info');
+}
+
 // --- Backend Communication ---
 async function loadDataFromBackend() {
     // First try to load from localStorage (user's changes)
@@ -137,6 +177,43 @@ Happy coding! 🚀`
                     message: 'Added README.md with project documentation',
                     author: 'Shiwani',
                     date: 'October 7, 2025'
+                }
+            ]
+        },
+        {
+            name: 'Personal-Notes',
+            description: 'Private repository for personal notes and ideas',
+            createdDate: '10/5/2025',
+            isPrivate: true,
+            currentBranch: 'main',
+            branches: [
+                { name: 'main', parent: '', current: true }
+            ],
+            files: [
+                {
+                    name: 'ideas.md',
+                    info: 'Personal ideas and thoughts',
+                    date: 'a few minutes ago',
+                    content: `# Personal Ideas
+
+## Project Ideas
+- Build a task management app
+- Create a personal blog
+- Learn machine learning
+
+## Notes
+- Remember to backup important files
+- Review code before committing
+- Keep learning new technologies
+
+This is private content that only the owner should see.`
+                }
+            ],
+            commits: [
+                {
+                    message: 'Initial commit: Added personal ideas',
+                    author: 'Shiwani',
+                    date: 'October 5, 2025'
                 }
             ]
         }
@@ -349,7 +426,7 @@ function searchRepositories() {
     searchTimeout = setTimeout(() => {
         const searchTerm = document.getElementById('repoSearchInput').value.toLowerCase();
         if (!searchTerm) {
-            renderRepositories(repositories);
+            renderRepositories(getAccessibleRepositories(repositories));
             return;
         }
         
@@ -358,29 +435,29 @@ function searchRepositories() {
             .then(response => response.json())
             .then(data => {
                 if (data.results && data.results.length > 0) {
-                    // Filter repositories based on search results from backend
-                    const filteredRepos = repositories.filter(repo => 
+                    // Filter repositories based on search results from backend and access control
+                    const filteredRepos = getAccessibleRepositories(repositories.filter(repo => 
                         data.results.some(result => 
                             result.toLowerCase() === repo.name.toLowerCase()
                         )
-                    );
+                    ));
                     renderRepositories(filteredRepos);
                 } else {
                     // Fallback to client-side search if no results from backend
-                    const filteredRepos = repositories.filter(repo => 
+                    const filteredRepos = getAccessibleRepositories(repositories.filter(repo => 
                         repo.name.toLowerCase().includes(searchTerm) || 
                         (repo.description && repo.description.toLowerCase().includes(searchTerm))
-                    );
+                    ));
                     renderRepositories(filteredRepos);
                 }
             })
             .catch(error => {
                 console.error('Error searching repositories:', error);
                 // Fallback to client-side search on error
-                const filteredRepos = repositories.filter(repo => 
+                const filteredRepos = getAccessibleRepositories(repositories.filter(repo => 
                     repo.name.toLowerCase().includes(searchTerm) || 
                     (repo.description && repo.description.toLowerCase().includes(searchTerm))
-                );
+                ));
                 renderRepositories(filteredRepos);
             });
     }, 300); // 300ms debounce
@@ -388,7 +465,8 @@ function searchRepositories() {
 
 // --- Dashboard Functions ---
 function renderDashboard() {
-    renderRepositories(repositories);
+    const accessibleRepos = getAccessibleRepositories(repositories);
+    renderRepositories(accessibleRepos);
 }
 
 function renderRepositories(repos) {
@@ -412,7 +490,10 @@ function renderRepositories(repos) {
         repoCard.className = 'repo-card';
         repoCard.innerHTML = `
             <div class="repo-card-header">
-                <h3 onclick="goToRepoPage('${repo.name}')">${repo.name}</h3>
+                <div class="repo-title-section">
+                    <h3 onclick="goToRepoPage('${repo.name}')">${repo.name}</h3>
+                    ${repo.isPrivate ? '<span class="private-badge">Private</span>' : '<span class="public-badge">Public</span>'}
+                </div>
                 <div class="repo-actions-icons">
                     <button class="repo-card-edit-btn" onclick="openEditRepoModal('${repo.name}')">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
@@ -427,7 +508,10 @@ function renderRepositories(repos) {
                 </div>
             </div>
             <p>${repo.description || 'No description'}</p>
-            <span>Created ${repo.createdDate || 'recently'}</span>
+            <div class="repo-card-footer">
+                <span>Created ${repo.createdDate || 'recently'}</span>
+                ${repo.isPrivate ? '<span class="privacy-indicator"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 4a4 4 0 0 1 8 0v2h.5c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-5C2 6.67 2.67 6 3.5 6H4V4zm6.5 2V4a2.5 2.5 0 0 0-5 0v2h5z"/></svg> Private</span>' : '<span class="privacy-indicator"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zM7 3.5a.5.5 0 0 1 1 0v3a.5.5 0 0 1-1 0v-3zM8 9a.75.75 0 1 1 0 1.5A.75.75 0 0 1 8 9z"/></svg> Public</span>'}
+            </div>
         `;
         repoGrid.appendChild(repoCard);
     });
@@ -443,7 +527,7 @@ function renderRepoPageContent() {
     currentRepoName = params.get('repo');
     if (currentRepoName) {
         const repo = repositories.find(r => r.name === currentRepoName);
-        if (repo) {
+        if (repo && hasRepositoryAccess(repo)) {
             document.querySelector('.repo-name-text').textContent = decodeURIComponent(currentRepoName);
             document.querySelector('.repo-description-text').textContent = repo.description;
             
@@ -464,6 +548,29 @@ function renderRepoPageContent() {
                 }];
                 repo.currentBranch = 'main';
             }
+        } else if (repo && !hasRepositoryAccess(repo)) {
+            // Show access denied message for private repositories
+            document.body.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center;">
+                    <svg viewBox="0 0 16 16" fill="currentColor" style="width: 64px; height: 64px; color: #f85149; margin-bottom: 20px;">
+                        <path d="M4 4a4 4 0 0 1 8 0v2h.5c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-5C2 6.67 2.67 6 3.5 6H4V4zm6.5 2V4a2.5 2.5 0 0 0-5 0v2h5z"/>
+                    </svg>
+                    <h2 style="color: #f85149; margin-bottom: 10px;">Access Denied</h2>
+                    <p style="color: #8b949e; margin-bottom: 20px;">This repository is private and you don't have access to it.</p>
+                    <a href="index.html" style="color: #1f6feb; text-decoration: none; padding: 8px 16px; border: 1px solid #1f6feb; border-radius: 6px;">← Back to Dashboard</a>
+                </div>
+            `;
+            return;
+        } else {
+            // Repository not found
+            document.body.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center;">
+                    <h2 style="color: #f85149; margin-bottom: 10px;">Repository Not Found</h2>
+                    <p style="color: #8b949e; margin-bottom: 20px;">The repository you're looking for doesn't exist.</p>
+                    <a href="index.html" style="color: #1f6feb; text-decoration: none; padding: 8px 16px; border: 1px solid #1f6feb; border-radius: 6px;">← Back to Dashboard</a>
+                </div>
+            `;
+            return;
         }
         showSection('files');
     }
@@ -688,7 +795,7 @@ async function createRepository() {
     repositories.push(newRepo);
     
     // Call backend API
-    await callBackendAPI('POST', '/api/repositories', `name=${name}&description=${description}`);
+    await callBackendAPI('POST', '/api/repositories', `name=${name}&description=${description}&isPrivate=${newRepo.isPrivate}`);
     
     closeModal('newRepoModal');
     renderDashboard();
@@ -696,6 +803,7 @@ async function createRepository() {
     // Clear form
     document.getElementById('repoName').value = '';
     document.getElementById('repoDescription').value = '';
+    document.querySelector('#newRepoModal input[type="checkbox"]').checked = false;
 }
 
 async function saveRepoChanges() {

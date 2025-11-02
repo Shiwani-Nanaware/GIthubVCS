@@ -7,88 +7,155 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <div class="repo-header-left">
-            <a href="index.html" class="back-link">&leftarrow;</a>
-            <div class="repo-name-text">LeetCode</div>
-            <div class="current-branch-indicator">
-                <svg class="branch-icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M6 2C4.89 2 4 2.89 4 4C4 5.11 4.89 6 6 6C7.11 6 8 5.11 8 4C8 2.89 7.11 2 6 2M4 7V12C4 13.11 4.89 14 6 14C7.11 14 8 13.11 8 12V7H4M18 16C16.89 16 16 16.89 16 18C16 19.11 16.89 20 18 20C19.11 20 20 19.11 20 18C20 16.89 19.11 16 18 16M14 7V12C14 15.31 16.69 18 20 18V16C17.79 16 16 14.21 16 12V7H14Z"/>
-                </svg>
-                <span id="current-branch-name">main</span>
+    <header class="repo-header">
+        <div class="repo-header-container">
+            <div class="repo-header-left">
+                <a href="index.html" class="back-link" title="Back to repositories">
+                    <svg viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M7.78 12.53a.75.75 0 0 1-1.06 0L2.47 8.28a.75.75 0 0 1 0-1.06L6.72 2.97a.75.75 0 0 1 1.06 1.06L4.81 7h8.44a.75.75 0 0 1 0 1.5H4.81l2.97 2.97a.75.75 0 0 1 0 1.06Z"/>
+                        </svg>
+                </a>
+                <div class="repo-name-text">InterviewAce</div>
+                <div class="current-branch-indicator">
+                    <svg class="branch-icon" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Zm-6 0a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Zm8.25-.75a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM4.25 12a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/>
+                    </svg>
+                    <span id="current-branch-name">main</span>
+                </div>
             </div>
-        </div>
-        <div class="repo-search-container">
-            <div class="search-box">
-                <svg class="search-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 001.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 00-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 005.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-                </svg>
-                <input type="text" id="repoSearchInput" placeholder="Search files..." oninput="filterFiles()">
+            
+            <div class="repo-header-center">
+                <div class="search-container">
+                    <div class="search-box">
+                        <svg class="search-icon" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
+                        </svg>
+                        <input type="text" id="repoSearchInput" placeholder="Search files..." oninput="filterFiles()">
+                    </div>
+                </div>
             </div>
-        </div>
-        <div class="repo-header-right">
-            <div class="repo-header-right-buttons">
-                <button class="icon-btn" onclick="performUndo()" title="Undo">
-                    <svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12.5 8c-2.65 0-5.1.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.09 0 5.67 1.93 6.64 4.54l2.25-.89C21.08 11.23 17.15 8 12.5 8z"/>
-                    </svg>
-                    <span>Undo</span>
-                </button>
-                <button class="icon-btn" onclick="performRedo()" title="Redo">
-                    <svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M18.42 5.67l.89-2.25C17.15 1.77 13.22-1.4 8.5 2.12v1.88c2.65 0 5.1-.99 6.9-2.6L22 7v9h-9l3.62-3.62c-1.39-1.16-3.16-1.88-5.12-1.88-3.09 0-5.67 1.93-6.64 4.54l-2.25-.89C2.92 11.23 6.85 8 11.5 8z"/>
-                    </svg>
-                    <span>Redo</span>
-                </button>
-                <button class="icon-btn" onclick="showHistory()" title="View action history">
-                    <svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
-                    </svg>
-                    <span>History</span>
-                </button>
-                <button class="icon-btn" onclick="openModal('taskQueueModal')" title="View tasks">
-                    <svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
-                    <span>Tasks</span>
-                </button>
+            
+            <div class="repo-header-right">
+                <div class="action-buttons">
+                    <button class="icon-btn" onclick="performUndo()" title="Undo">
+                        <svg class="icon-svg" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M1.22 6.28a.749.749 0 0 1 0-1.06l3.5-3.5a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L3.56 5h7.69a2.75 2.75 0 0 1 0 5.5H9.5a.75.75 0 0 1 0-1.5h1.75a1.25 1.25 0 0 0 0-2.5H3.56l2.22 2.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215Z"/>
+                        </svg>
+                    </button>
+                    <button class="icon-btn" onclick="performRedo()" title="Redo">
+                        <svg class="icon-svg" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M14.78 6.28a.749.749 0 0 1 0 1.06l-3.5 3.5a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L12.44 7H4.75a2.75 2.75 0 0 1 0-5.5H6.5a.75.75 0 0 1 0 1.5H4.75a1.25 1.25 0 0 0 0 2.5h7.69l-2.22-2.22a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215Z"/>
+                        </svg>
+                    </button>
+                    <button class="icon-btn" onclick="showHistory()" title="View action history">
+                        <svg class="icon-svg" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M.427 1.927C.665 1.69.665 1.31.427 1.072a.25.25 0 0 0-.354 0C-.072 1.218-.072 1.596.073 1.741L1.97 3.64A5.998 5.998 0 0 1 8 2a6.006 6.006 0 0 1 6 6 .75.75 0 0 1-1.5 0 4.506 4.506 0 0 0-4.5-4.5c-1.288 0-2.47.558-3.293 1.444L6.604 6.84c.146.146.427.042.427-.177V5.25a.75.75 0 0 1 1.5 0v3.75a.75.75 0 0 1-.75.75H4.031a.75.75 0 0 1 0-1.5h1.414L.427 2.927Z"/>
+                        </svg>
+                    </button>
+                    <button class="icon-btn" onclick="openModal('taskQueueModal')" title="View tasks">
+                        <svg class="icon-svg" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M2.5 1.75v11.5c0 .966.784 1.75 1.75 1.75h8.5A1.75 1.75 0 0 0 14.5 13.25V4.664a1.75 1.75 0 0 0-.513-1.237L10.513.513A1.75 1.75 0 0 0 9.276 0H4.25A1.75 1.75 0 0 0 2.5 1.75Zm1.75-.25a.25.25 0 0 0-.25.25v11.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V4.664a.25.25 0 0 0-.073-.177l-3.474-3.474a.25.25 0 0 0-.177-.073H4.25Z"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
     </header>
     <main class="repo-page-main">
-        <section class="repo-content">
-            <p class="repo-description-text">DSA Questions</p>
-            <div class="repo-nav">
-                <button class="nav-btn active" onclick="showSection('files')">Files</button>
-                <button class="nav-btn" onclick="showSection('commits')">Commits</button>
-                <button class="nav-btn" onclick="showSection('branches')">Branches</button>
-            </div>
-            <div id="files-section" class="content-section active-section">
-                <div class="file-actions">
-                    <button class="create-file-btn" onclick="openModal('newFileModal')">+ Create File</button>
-                    <button class="upload-file-btn" onclick="openModal('uploadFileModal')">Upload File</button>
-                </div>
-                <div id="fileListContainer" class="file-list-container">
+        <div class="repo-container">
+            <div class="repo-header-info">
+                <div class="repo-description">
+                    <p class="repo-description-text">DSA Questions</p>
                 </div>
             </div>
-            <div id="commits-section" class="content-section">
-                <div class="commit-list-container">
+            
+            <div class="repo-navigation">
+                <nav class="repo-nav">
+                    <button class="nav-btn active" onclick="showSection('files')">
+                        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"/>
+                        </svg>
+                        <span>Files</span>
+                    </button>
+                    <button class="nav-btn" onclick="showSection('commits')">
+                        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M11.93 8.5a4.002 4.002 0 0 1-7.86 0H.75a.75.75 0 0 1 0-1.5h3.32a4.002 4.002 0 0 1 7.86 0h3.32a.75.75 0 0 1 0 1.5Zm-1.43-.75a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z"/>
+                        </svg>
+                        <span>Commits</span>
+                    </button>
+                    <button class="nav-btn" onclick="showSection('branches')">
+                        <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Zm-6 0a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Zm8.25-.75a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM4.25 12a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/>
+                        </svg>
+                        <span>Branches</span>
+                    </button>
+                </nav>
+            </div>
+            
+            <div class="repo-content">
+                <div id="files-section" class="content-section active-section">
+                    <div class="section-header">
+                        <div class="section-actions">
+                            <button class="primary-btn" onclick="openModal('newFileModal')">
+                                <svg viewBox="0 0 16 16" fill="currentColor">
+                                    <path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"/>
+                                </svg>
+                                Create File
+                            </button>
+                            <button class="secondary-btn" onclick="openModal('uploadFileModal')">
+                                <svg viewBox="0 0 16 16" fill="currentColor">
+                                    <path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"/>
+                                    <path d="M11.78 4.72a.749.749 0 1 1-1.06 1.06L8.75 3.811V9.5a.75.75 0 0 1-1.5 0V3.811L5.28 5.78a.749.749 0 1 1-1.06-1.06l3.25-3.25a.749.749 0 0 1 1.06 0l3.25 3.25Z"/>
+                                </svg>
+                                Upload File
+                            </button>
+                        </div>
                     </div>
-            </div>
-            <div id="branches-section" class="content-section">
-                <div class="branch-actions">
-                    <button class="create-branch-btn" onclick="openModal('createBranchModal')">+ Create Branch</button>
-                    <div class="branch-controls">
-                        <select id="branchSwitchSelect" onchange="switchToBranch(this.value)">
-                            <option value="">Switch Branch...</option>
-                        </select>
-                        <button class="merge-branch-btn" onclick="openModal('mergeBranchModal')">Merge Branch</button>
+                    <div class="content-body">
+                        <div id="fileListContainer" class="file-list-container">
+                        </div>
                     </div>
                 </div>
-                <div id="branchListContainer" class="branch-list-container">
+                
+                <div id="commits-section" class="content-section">
+                    <div class="section-header">
+                        <h3>Commit History</h3>
+                    </div>
+                    <div class="content-body">
+                        <div class="commit-list-container">
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="branches-section" class="content-section">
+                    <div class="section-header">
+                        <div class="section-actions">
+                            <button class="primary-btn" onclick="openModal('createBranchModal')">
+                                <svg viewBox="0 0 16 16" fill="currentColor">
+                                    <path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"/>
+                                </svg>
+                                Create Branch
+                            </button>
+                            <div class="branch-controls">
+                                <select id="branchSwitchSelect" onchange="switchToBranch(this.value)" class="branch-select">
+                                    <option value="">Switch Branch...</option>
+                                </select>
+                                <button class="secondary-btn" onclick="openModal('mergeBranchModal')">
+                                    <svg viewBox="0 0 16 16" fill="currentColor">
+                                        <path d="M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM4.25 4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z"/>
+                                    </svg>
+                                    Merge Branch
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="content-body">
+                        <div id="branchListContainer" class="branch-list-container">
+                        </div>
+                    </div>
                 </div>
             </div>
-        </section>
+        </div>
     </main>
 
     <div id="newFileModal" class="modal">
