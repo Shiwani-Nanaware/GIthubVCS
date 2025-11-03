@@ -93,6 +93,13 @@
             <input type="text" id="editRepoName" placeholder="my-awesome-project">
             <label for="editRepoDescription">Description (optional)</label>
             <textarea id="editRepoDescription" placeholder="A brief description of your project"></textarea>
+            <div class="private-toggle">
+                <span>Private Repository</span>
+                <label class="switch">
+                    <input type="checkbox" id="editRepoPrivate">
+                    <span class="slider round"></span>
+                </label>
+            </div>
             <div class="modal-actions-group">
                 <button class="modal-cancel-btn" onclick="closeModal('editRepoModal')">Cancel</button>
                 <button class="modal-action-btn" onclick="saveRepoChanges()">Save Changes</button>

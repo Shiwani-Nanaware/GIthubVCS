@@ -2244,6 +2244,7 @@ function openEditRepoModal(repoName) {
     if (currentRepo) {
         document.getElementById('editRepoName').value = currentRepo.name;
         document.getElementById('editRepoDescription').value = currentRepo.description;
+        document.getElementById('editRepoPrivate').checked = currentRepo.isPrivate || false;
         currentRepoName = repoName;
         openModal('editRepoModal');
     }
@@ -2344,6 +2345,7 @@ async function createRepository() {
 async function saveRepoChanges() {
     const name = document.getElementById('editRepoName').value.trim();
     const description = document.getElementById('editRepoDescription').value.trim();
+    const isPrivate = document.getElementById('editRepoPrivate').checked;
     
     if (!name) {
         alert('Repository name is required');
@@ -2363,14 +2365,23 @@ async function saveRepoChanges() {
     const repo = repositories.find(r => r.name === currentRepoName);
     if (repo) {
         const oldName = repo.name;
+        const oldPrivacy = repo.isPrivate;
         repo.name = name;
         repo.description = description;
+        repo.isPrivate = isPrivate;
         
         // Add commit for the change
+        let changeMessage = `Updated repository: ${oldName} → ${name}`;
+        if (oldPrivacy !== isPrivate) {
+            changeMessage += ` (Changed to ${isPrivate ? 'Private' : 'Public'})`;
+        }
         repo.commits.push({
-            message: `Updated repository: ${oldName} → ${name}`,
+            message: changeMessage,
             author: 'Shiwani',
-            date: new Date().toLocaleDateString()
+            date: new Date().toLocaleDateString(),
+            branch: 'main',
+            timestamp: Date.now(),
+            files: []
         });
         
         // Update currentRepoName if we're on the repo page

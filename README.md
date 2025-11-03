@@ -1,251 +1,444 @@
-# GitHub Simulator
+# 🚀 GitHub VCS Simulator
 
-A comprehensive GitHub-like repository management system with both C++ backend and modern web frontend integration.
+A fully functional **Version Control System** simulator built with HTML, CSS, and JavaScript that mimics GitHub's core features including repositories, commits, branches, and file management.
 
-## Features
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-- **Dual Interface**: Console-based CLI and modern web interface
-- **Repository Management**: Create, edit, delete, and manage repositories
-- **File Operations**: Create, edit, delete, upload, and view files within repositories
-- **Branch Management**: Complete Git-like branching system with **full branch isolation**
-  - Create, switch, merge, and delete branches
-  - **Deep copy isolation**: Each branch maintains independent file copies
-  - **Per-branch commit history**: Isolated commit logs for each branch
-  - **Memory-safe operations**: No shared references between branches
-- **Version Control**: Advanced undo/redo functionality with operation history tracking
-- **Task Management**: Add, manage, and track tasks for repositories
-- **Search Functionality**: Search repositories and files with real-time filtering
-- **Data Persistence**: JSON-based data storage with localStorage integration
+---
 
-## Data Structures Used
+## 📋 Table of Contents
 
-| Feature                     | Data Structure Used      | Implementation Details          |
-| --------------------------- | ------------------------ | ------------------------------- |
-| Repository Management       | Singly Linked List       | Dynamic repository storage      |
-| File Management             | Singly Linked List       | File organization within repos  |
-| Branch Management           | Tree/Graph + Map         | Hierarchical branch structure with fast lookup |
-| Undo/Redo Operations        | Stack (Dual Stack)       | Separate undo and redo stacks   |
-| Task Management             | Queue                    | FIFO task processing            |
-| Search Repositories & Files | Binary Search Tree (BST) | Optimized search operations     |
-| Commit History              | Doubly Linked List (DLL) | Bidirectional commit navigation per branch |
+- [Features](#-features)
+- [Quick Start](#-quick-start)
+- [How to Run](#-how-to-run)
+- [Project Structure](#-project-structure)
+- [Usage Guide](#-usage-guide)
+- [Technical Details](#-technical-details)
+- [Troubleshooting](#-troubleshooting)
 
-## Architecture
+---
 
-- **Backend**: C++ application implementing core data structures and algorithms
-- **Frontend**: Modern HTML5, CSS3, JavaScript with responsive design
-- **Data Layer**: JSON-based communication with localStorage fallback
-- **UI/UX**: Clean, GitHub-inspired interface with dark theme
+## ✨ Features
 
-## How to Run
+### 🗂️ Repository Management
+- ✅ Create, edit, and delete repositories
+- ✅ Public/Private repository support
+- ✅ Repository descriptions and metadata
+- ✅ Access control for private repositories
 
-### Option 1: Quick Start with Batch Script (Windows)
-```bash
-.\run.bat
+### 📁 File Operations
+- ✅ Create, edit, and delete files
+- ✅ File content viewer with syntax highlighting
+- ✅ Upload files from local system
+- ✅ File search functionality
+
+### 🌿 Branch Management
+- ✅ Create branches from any base branch
+- ✅ Switch between branches
+- ✅ Merge branches with conflict detection
+- ✅ Branch isolation (changes in one branch don't affect others)
+- ✅ Visual branch indicators
+
+### 📊 Commit System
+- ✅ Automatic commit creation for all file operations
+- ✅ Commit history with timestamps
+- ✅ Commits grouped by branch
+- ✅ File tracking in commits (shows which files changed)
+- ✅ Commit messages with author information
+
+### 📈 Commit Graph Visualization
+- ✅ Interactive visual commit graph
+- ✅ Different colors for different branches
+- ✅ Branch lanes and connections
+- ✅ Filenames displayed below commits
+- ✅ Hover tooltips with full commit details
+- ✅ Non-overlapping branch labels
+
+### 🔄 Undo/Redo System
+- ✅ Undo recent actions
+- ✅ Redo undone actions
+- ✅ Action history viewer
+
+### 🔍 Search & Filter
+- ✅ Search repositories by name
+- ✅ Search files by name and content
+- ✅ Filter commits by branch
+
+### 💾 Data Persistence
+- ✅ All data stored in browser's localStorage
+- ✅ Data persists across sessions
+- ✅ No backend required
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Any modern web browser (Chrome, Firefox, Safari, Edge)
+- No installation required!
+
+### Running the Application
+
+**Option 1: Double-click (Easiest)**
 ```
-This will automatically compile and run the C++ backend, then open the web interface.
+Simply double-click on index.html
+```
 
-### Option 2: Web Interface Only (Recommended)
-1. Open `index.html` directly in your web browser
-2. The application runs entirely in the browser with localStorage persistence
-3. No compilation required - works out of the box
+**Option 2: Using PowerShell**
+```powershell
+# Navigate to the project folder
+cd path\to\GIthubVCS
 
-### Option 3: Manual C++ Backend Setup
-1. **Compile**: `g++ -o github_simulator main.cpp`
-2. **Run Backend**: `./github_simulator` or `github_simulator.exe`
-3. **Choose Mode**:
-   - **Web Mode**: Generates `data.json` for web interface
-   - **Console Mode**: Interactive CLI for terminal usage
-4. **Open Web Interface**: Launch `index.html` in your browser
+# Open the application
+Start-Process index.html
+```
 
-### Option 4: Console Mode Only (C++ CLI)
-1. Compile and run: `g++ -o github_simulator main.cpp && ./github_simulator`
-2. Choose option `1` for console mode
-3. Use interactive CLI commands to manage repositories and test branch isolation
+**Option 3: Using Command Prompt**
+```cmd
+# Navigate to the project folder
+cd path\to\GIthubVCS
 
-## Web Interface Features
+# Open the application
+start index.html
+```
 
-### Dashboard (index.html)
+That's it! The application will open in your default browser.
 
-- **Repository Grid**: Visual repository cards with descriptions and metadata
-- **Search & Filter**: Real-time repository search functionality
-- **Create Repository**: Modal-based repository creation with privacy settings
-- **Edit/Delete**: Inline repository management options
-- **Undo/Redo/History**: Full operation tracking and reversal capabilities
+---
 
-### Repository View (repo.html)
+## 📂 Project Structure
 
-- **File Management**: Create, upload, edit, and delete files
-- **File Viewer**: Syntax-highlighted file content display
-- **Search Files**: Filter files by name and content
-- **Branch Management**: Complete branching system with visual branch indicator
-  - Create new branches from existing branches
-  - Switch between branches with dropdown selection
-  - Merge branches with conflict-free merging
-  - Delete branches (except main branch)
-  - Visual branch hierarchy and current branch indicator
-- **Commit Tracking**: View repository commit history per branch
-- **Task Management**: Add and track repository-specific tasks
-- **Operation History**: Dedicated undo/redo stack visualization
+```
+GIthubVCS/
+├── index.html              # Main dashboard page
+├── repo.html               # Repository detail page
+├── script.js               # Main JavaScript logic (3000+ lines)
+├── style.css               # Styling (2000+ lines)
+├── README.md               # This documentation
+├── data.json               # Sample data (optional)
+├── main.cpp                # C++ backend (optional)
+└── run.bat                 # Batch file to compile C++ (optional)
+```
 
-### Key Features
+---
 
-- **Responsive Design**: Works on desktop, tablet, and mobile devices
-- **Dark Theme**: Modern GitHub-inspired dark interface
-- **Modal Dialogs**: Clean, accessible modal interfaces for all operations
-- **Real-time Updates**: Instant UI updates with data persistence
-- **Notification System**: User feedback for all operations
-- **Local Storage**: Persistent data storage in browser
+## 📖 Usage Guide
 
-## Technical Implementation
+### 1️⃣ Creating a Repository
+
+1. Open `index.html` in your browser
+2. Click the **"+ New Repository"** button
+3. Enter repository name and description
+4. Toggle **Private/Public** as needed
+5. Click **"Create Repository"**
+
+### 2️⃣ Managing Files
+
+**Create a File:**
+1. Open any repository
+2. Go to **"Files"** tab
+3. Click **"Create File"**
+4. Enter filename and content
+5. Add commit message (optional)
+6. Click **"Create File"**
+
+**Edit a 
+File:**
+1. Click the **edit icon** (✏️) on any file
+2. Modify the content
+3. Click **"Save Changes"**
+
+**Delete a File:**
+1. Click the **delete icon** (🗑️) on any file
+2. Confirm deletion
+
+### 3️⃣ Working with Branches
+
+**Create a Branch:**
+1. Go to **"Branches"** tab
+2. Click **"Create Branch"**
+3. Select base branch
+4. Enter new branch name
+5. Click **"Create Branch"**
+
+**Switch Branches:**
+1. Go to **"Branches"** tab
+2. Click **"Switch"** on desired branch
+3. Files will update to show that branch's content
+
+**Merge Branches:**
+1. Go to **"Branches"** tab
+2. Click **"Merge Branch"**
+3. Select source and target branches
+4. Click **"Merge Branches"**
+
+### 4️⃣ Viewing Commits
+
+**Commit List:**
+1. Go to **"Commits"** tab
+2. See commits grouped by branch
+3. Each commit shows:
+   - Commit message
+   - Files changed (with 📄 badges)
+   - Author and date
+   - Branch tag
+
+**Commit Graph:**
+1. Go to **"Commits"** tab
+2. Click **"Show Graph"** button
+3. See visual representation with:
+   - Different colors for each branch
+   - Branch lanes and connections
+   - Filenames below commits
+   - Hover for full details
+
+### 5️⃣ Editing Repository Settings
+
+1. Click the **edit icon** (✏️) on repository card
+2. Update name, description, or privacy
+3. Toggle **Private/Public** switch
+4. Click **"Save Changes"**
+
+---
+
+## 🔧 Technical Details
+
+### Technologies Used
+
+- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
+- **Storage**: Browser localStorage API
+- **Graphics**: SVG for commit graph visualization
+- **Backend** (Optional): C++ with file I/O
+
+### Key Components
+
+#### 1. Data Structure
+```javascript
+Repository {
+    name: string,
+    description: string,
+    isPrivate: boolean,
+    currentBranch: string,
+    branches: Branch[],
+    files: File[],
+    commits: Commit[]
+}
+
+Commit {
+    message: string,
+    author: string,
+    date: string,
+    branch: string,
+    timestamp: number,
+    files: string[]  // Array of affected filenames
+}
+
+Branch {
+    name: string,
+    parent: string,
+    current: boolean,
+    files: File[],
+    commits: Commit[]
+}
+```
+
+#### 2. Storage
+- All data stored in `localStorage` under key `githubSimulatorData`
+- Automatic save on every operation
+- Data persists across browser sessions
+
+#### 3. Commit Graph Algorithm
+- **Vertical layout**: Commits flow downward
+- **Branch positioning**: Main at x=80, features offset left
+- **Color assignment**: Unique color per branch
+- **Overlap detection**: Branch labels auto-adjust to prevent overlap
+
+### Browser Compatibility
+
+✅ Chrome/Edge (Chromium) - Recommended
+✅ Firefox
+✅ Safari
+✅ Opera
+
+---
+
+## 🛠️ Troubleshooting
+
+### Issue: Data lost or corrupted
+
+**Solution:**
+```javascript
+// Open browser console (F12) and run:
+localStorage.clear();
+location.reload();
+```
+
+---
+
+## 🎨 Features Showcase
+
+### Commit List with Branch Grouping
+```
+🌿 main                    5 commits
+  ├─ Created repository
+  ├─ Added test.js (📄 test.js)
+  └─ Updated README (📄 README.md)
+
+🌿 feature/auth            2 commits
+  ├─ Added authentication (📄 auth.js)
+  └─ Fixed login bug (📄 auth.js)
+```
+
+### Commit Graph Visualization
+```
+        main (Blue)
+         │
+         ●  Initial commit
+         │  📄 README.md
+         │
+    ┌────┘
+    │ feature/auth (Green)
+    ●  Added authentication
+    │  📄 auth.js
+    │
+    └────┐
+         │ main (Blue)
+         ●  Merged auth feature
+```
+
+### Branch Colors
+- 🔵 **main**: Blue (#1f6feb)
+- 🟢 **feature branches**: Green, Red, Purple, Orange
+- 🔴 **hotfix branches**: Red/Orange
+- Each branch gets a unique color automatically
+
+---
+
+## 📝 Tips & Best Practices
+
+### 1. Commit Messages
+- Be descriptive: "Added user authentication" ✅
+- Avoid vague: "Updated file" ❌
+
+### 2. Branch Naming
+- Use prefixes: `feature/`, `hotfix/`, `bugfix/`
+- Be specific: `feature/user-auth` ✅
+- Avoid generic: `new-branch` ❌
+
+### 3. File Organization
+- Use folders: `src/components/Button.js`
+- Group related files
+- Keep names descriptive
+
+### 4. Branch Strategy
+- Keep `main` stable
+- Create feature branches for new work
+- Merge back when complete
+- Delete old branches
+
+---
+
+## 🚀 Advanced Features
 
 ### Undo/Redo System
+- Press **Undo** button to revert last action
+- Press **Redo** to restore undone action
+- View history with **History** button
 
-- **Dual Stack Architecture**: Separate undo and redo operation stacks
-- **State Snapshots**: Complete application state preservation
-- **Operation Tracking**: Detailed action history with timestamps
-- **UI Integration**: Visual indicators and history modal
+### Search Functionality
+- **Repository search**: Type in search box on dashboard
+- **File search**: Use search box in repository view
+- **Content search**: Searches inside file content
 
-### Branch Management System
-- **Tree Structure**: Branches organized in a hierarchical tree/graph structure
-- **Fast Lookup**: Map-based branch indexing for O(1) branch access
-- **Complete Branch Isolation**: Deep copy implementation ensures no shared memory
-- **Branch Operations**:
-  - `createBranch(baseBranch, newBranch)`: Create new branch with deep-copied files
-  - `switchBranch(branchName)`: Switch active branch context with file isolation
-  - `mergeBranch(sourceBranch, targetBranch)`: Merge branch changes safely
-  - `listBranches()`: Get all available branches
-  - `testBranchIsolation()`: Verify branch isolation integrity
-- **Per-Branch Data**: Each branch maintains completely independent file versions and commit history
-- **Memory Management**: Proper destructors and cleanup prevent memory leaks
-- **Visual Indicators**: Current branch display and branch hierarchy visualization
+### Access Control
+- **Private repos**: Only owner can access
+- **Public repos**: Everyone can view
+- Toggle privacy in edit modal
 
-### Data Management
+---
 
-- **JSON Serialization**: Structured data export/import with branch information
-- **localStorage Integration**: Browser-based data persistence including branch state
-- **Fallback Data**: Default repository data with main branch initialization
-- **State Synchronization**: Consistent data across all interfaces and branches
+## 🎯 Use Cases
 
-## Files Structure
+### 1. Learning Git/GitHub
+- Practice version control concepts
+- Understand branching and merging
+- Visualize commit history
 
-```
-├── main.cpp              # C++ backend with data structures and branch isolation
-├── index.html            # Main dashboard page
-├── repo.html             # Repository details page with branch management
-├── script.js             # Frontend JavaScript with branch isolation logic
-├── style.css             # Modern UI styling and branch management themes
-├── run.bat               # Windows compilation and execution script
-├── data.json             # Backend-generated data with branch information (optional)
-└── README.md             # Project documentation
-```
+### 2. Project Planning
+- Plan repository structure
+- Design branch strategy
+- Visualize workflow
 
-## Batch Script Details
+### 3. Teaching
+- Demonstrate VCS concepts
+- Show branching strategies
+- Explain commit graphs
 
-The `run.bat` script provides an automated way to compile and run the project:
+### 4. Prototyping
+- Quick project setup
+- Test file structures
+- Experiment with branches
 
-```batch
-.\run.bat
-```
+---
 
-**What it does:**
-1. Compiles the C++ backend using `g++ -o github_simulator main.cpp`
-2. Handles compilation errors gracefully
-3. Runs the compiled executable
-4. Provides user-friendly prompts for mode selection
-5. Gives instructions for opening the web interface
+## 🔮 Future Enhancements (Potential)
 
-**Requirements:**
-- Windows operating system
-- MinGW-w64 or similar C++ compiler with `g++` command available
-- Modern web browser for web interface
+- [ ] Pull requests
+- [ ] Code review system
+- [ ] Conflict resolution UI
+- [ ] File diff viewer
+- [ ] Blame view
+- [ ] Tags and releases
+- [ ] Collaborators
+- [ ] Issues and projects
+- [ ] GitHub Actions simulation
+- [ ] Export to real Git
 
-## Browser Compatibility
+---
 
-- **Chrome/Chromium**: Full support
-- **Firefox**: Full support
-- **Safari**: Full support
-- **Edge**: Full support
-- **Mobile Browsers**: Responsive design support
+## 📄 License
 
-## Getting Started
+MIT License - Feel free to use, modify, and distribute.
 
-### Quick Start Guide
-1. **Launch Application**: Run `.\run.bat` (Windows) or open `index.html` directly
-2. **Create Repository**: Click "New Repository" to create your first repo
-3. **Add Files**: Navigate to a repository and use "Create File" or "Upload File"
-4. **Explore Branches**: 
-   - Go to "Branches" tab in repository view
-   - Create a new branch from main
-   - Switch between branches and notice file isolation
-   - Add different files to different branches
-5. **Test Branch Isolation**: 
-   - Console mode: Use option 14 "Test Branch Isolation"
-   - Web mode: Create files in different branches and verify independence
-6. **Explore Features**: Try the undo/redo functionality and task management
-7. **View History**: Use the history button to see operation tracking
+---
 
-### Branch Isolation Demo
-```bash
-# Console Mode Demo
-1. Create repository "TestRepo"
-2. Create branch "feature" from "main"
-3. Add file "main.txt" to main branch
-4. Switch to "feature" branch
-5. Add file "feature.txt" to feature branch
-6. Run "Test Branch Isolation" - should show "YES"
-7. Switch between branches to see different files
+## 👨‍💻 Author
+
+Created as a comprehensive GitHub VCS simulator for learning and demonstration purposes.
+
+---
+
+## 🙏 Acknowledgments
+
+- Inspired by GitHub's interface and functionality
+- Built with modern web technologies
+- Designed for educational purposes
+
+---
+
+## 📞 Support
+
+If you encounter any issues:
+
+1. Check the **Troubleshooting** section above
+2. Use the utility tools (`fix_*.html` files)
+3. Clear localStorage and start fresh
+4. Check browser console for errors (F12)
+
+---
+
+## 🎉 Getting Started Now!
+
+Ready to start? Just open `index.html` and begin exploring!
+
+```powershell
+# Quick start command
+Start-Process index.html
 ```
 
-## Testing & Verification
+**Happy coding! 🚀**
 
-### Branch Isolation Testing
-The system includes built-in testing to verify branch isolation:
+---
 
-**Console Mode Testing:**
-- Menu option 14: "Test Branch Isolation"
-- Automatically tests file independence between branches
-- Reports: "Branch isolation working: YES/NO"
-
-**Web Mode Testing:**
-- JavaScript function: `testBranchIsolation()`
-- Can be called from browser console
-- Verifies frontend branch isolation
-
-**Manual Testing Steps:**
-1. Create a repository with multiple branches
-2. Add different files to different branches
-3. Modify files in one branch
-4. Switch to another branch and verify files are unchanged
-5. Use the built-in test functions to verify programmatically
-
-### Expected Test Results
-✅ **Branch Isolation**: Each branch maintains independent file copies  
-✅ **Memory Safety**: No shared pointers between branches  
-✅ **File Operations**: CRUD operations work correctly per branch  
-✅ **Commit History**: Each branch has independent commit logs  
-✅ **Branch Switching**: Files change correctly when switching branches
-
-## Recent Updates
-
-### ✅ Branch Isolation Implementation (Latest)
-- **Deep Copy Architecture**: Complete file and commit isolation between branches
-- **Memory Safety**: Proper destructors and cleanup prevent memory leaks
-- **Testing Framework**: Built-in branch isolation testing in both console and web modes
-- **Performance**: O(1) branch lookup with efficient memory management
-- **Verification**: Console test confirms "Branch isolation working: YES"
-
-### ✅ Enhanced Branch Management
-- **Visual Branch Indicator**: Current branch displayed in repository header
-- **Branch-Specific Operations**: All file operations respect current branch context
-- **Independent Commit History**: Each branch maintains its own commit log
-- **Safe Merging**: Conflict-free branch merging with proper file handling
-
-## Future Enhancements
-
-- Advanced merge conflict resolution
-- Branch comparison and diff visualization
-- Collaborative features with multi-user support
-- Plugin system for extensions
-- Cloud storage integration
-- Git-style staging area
-- Advanced search with branch filtering
+*Last Updated: November 2025*
