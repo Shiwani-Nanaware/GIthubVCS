@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Commits Display</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #0d1117;
+            color: #c9d1d9;
+        }
+        .test-section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2ea043;
+        }
+        .clear-btn {
+            background: #da3633;
+        }
+        .clear-btn:hover {
+            background: #f85149;
+        }
+        .result {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .commit-item {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .commit-files {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 8px 0;
+        }
+        .commit-file-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(56, 139, 253, 0.15);
+            color: #58a6ff;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid rgba(56, 139, 253, 0.3);
+        }
+        .success {
+            color: #56d364;
+        }
+        .error {
+            color: #f85149;
+        }
+        pre {
+            background: #0d1117;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Commit Display Test Page</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Check LocalStorage Data</h2>
+        <button onclick="checkLocalStorage()">Check Data</button>
+        <button onclick="clearLocalStorage()" class="clear-btn">Clear LocalStorage</button>
+        <div id="storage-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Display Commits</h2>
+        <button onclick="displayCommits()">Show All Commits</button>
+        <div id="commits-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: Create Test Repository</h2>
+        <button onclick="createTestRepo()">Create Test Repo</button>
+        <div id="create-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Quick Actions</h2>
+        <button onclick="window.location.href='index.html'">Go to Dashboard</button>
+        <button onclick="window.location.href='repo.html?repo=LeetCode'">Go to LeetCode Repo</button>
+    </div>
+
+    <script>
+        function checkLocalStorage() {
+            const result = document.getElementById('storage-result');
+            const data = localStorage.getItem('githubSimulatorData');
+            
+            if (!data) {
+                result.innerHTML = '<p class="error">❌ No data found in localStorage</p>';
+                return;
+            }
+            
+            try {
+                const repos = JSON.parse(data);
+                let html = `<p class="success">✅ Found ${repos.length} repositories</p>`;
+                
+                repos.forEach(repo => {
+                    const commitCount = repo.commits ? repo.commits.length : 0;
+                    const fileCount = repo.files ? repo.files.length : 0;
+                    html += `
+                        <div style="margin: 10px 0; padding: 10px; background: #21262d; border-radius: 4px;">
+                            <strong>${repo.name}</strong><br>
+                            Files: ${fileCount} | Commits: ${commitCount}
+                        </div>
+                    `;
+                });
+                
+                html += '<details><summary>View Raw Data</summary><pre>' + 
+                        JSON.stringify(repos, null, 2) + '</pre></details>';
+                
+                result.innerHTML = html;
+            } catch (e) {
+                result.innerHTML = `<p class="error">❌ Error parsing data: ${e.message}</p>`;
+            }
+        }
+        
+        function clearLocalStorage() {
+            if (confirm('Are you sure you want to clear all data?')) {
+                localStorage.clear();
+                document.getElementById('storage-result').innerHTML = 
+                    '<p class="success">✅ LocalStorage cleared. Refresh the page.</p>';
+            }
+        }
+        
+        function displayCommits() {
+            const result = document.getElementById('commits-result');
+            const data = localStorage.getItem('githubSimulatorData');
+            
+            if (!data) {
+                result.innerHTML = '<p class="error">❌ No data found</p>';
+                return;
+            }
+            
+            try {
+                const repos = JSON.parse(data);
+                let html = '';
+                
+                repos.forEach(repo => {
+                    html += `<h3>${repo.name}</h3>`;
+                    
+                    if (!repo.commits || repo.commits.length === 0) {
+                        html += '<p class="error">No commits found</p>';
+                        return;
+                    }
+                    
+                    repo.commits.forEach(commit => {
+                        let filesHtml = '';
+                        if (commit.files && commit.files.length > 0) {
+                            filesHtml = '<div class="commit-files">';
+                            commit.files.forEach(file => {
+                                filesHtml += `<span class="commit-file-badge">📄 ${file}</span>`;
+                            });
+                            filesHtml += '</div>';
+                        }
+                        
+                        html += `
+                            <div class="commit-item">
+                                <div><strong>${commit.message}</strong></div>
+                                ${filesHtml}
+                                <div style="font-size: 12px; color: #8b949e; margin-top: 5px;">
+                                    by ${commit.author} on ${commit.date}
+                                    ${commit.branch ? ` | Branch: ${commit.branch}` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                });
+                
+                result.innerHTML = html;
+            } catch (e) {
+                result.innerHTML = `<p class="error">❌ Error: ${e.message}</p>`;
+            }
+        }
+        
+        function createTestRepo() {
+            const result = document.getElementById('create-result');
+            
+            try {
+                let repos = JSON.parse(localStorage.getItem('githubSimulatorData')) || [];
+                
+                // Check if test repo already exists
+                if (repos.find(r => r.name === 'TestRepo')) {
+                    result.innerHTML = '<p class="error">❌ TestRepo already exists. Delete it first.</p>';
+                    return;
+                }
+                
+                const testRepo = {
+                    name: 'TestRepo',
+                    description: 'Test repository for commit display',
+                    createdDate: new Date().toLocaleDateString(),
+                    isPrivate: false,
+                    currentBranch: 'main',
+                    branches: [
+                        { 
+                            name: 'main', 
+                            parent: '', 
+                            current: true,
+                            files: [],
+                            commits: []
+                        }
+                    ],
+                    files: [
+                        {
+                            name: 'test.js',
+                            info: 'Test file',
+                            date: 'just now',
+                            content: 'console.log("test");'
+                        }
+                    ],
+                    commits: [
+                        {
+                            message: 'Created repository: TestRepo',
+                            author: 'Tester',
+                            date: new Date().toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                            }),
+                            branch: 'main',
+                            timestamp: Date.now() - 1000,
+                            files: []
+                        },
+                        {
+                            message: 'Added test.js',
+                            author: 'Tester',
+                            date: new Date().toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                            }),
+                            branch: 'main',
+                            timestamp: Date.now(),
+                            files: ['test.js']
+                        }
+                    ]
+                };
+                
+                repos.push(testRepo);
+                localStorage.setItem('githubSimulatorData', JSON.stringify(repos));
+                
+                result.innerHTML = `
+                    <p class="success">✅ TestRepo created successfully!</p>
+                    <p>Repository has 1 file and 2 commits.</p>
+                    <button onclick="window.location.href='repo.html?repo=TestRepo'">
+                        Open TestRepo
+                    </button>
+                `;
+            } catch (e) {
+                result.innerHTML = `<p class="error">❌ Error: ${e.message}</p>`;
+            }
+        }
+        
+        // Auto-check on load
+        window.onload = function() {
+            checkLocalStorage();
+        };
+    </script>
+</body>
+</html>

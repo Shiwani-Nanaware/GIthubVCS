@@ -2381,3 +2381,172 @@ anagement Styles */
     border-color: #58a6ff;
     box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
 }
+/* Com
+mit File Badges */
+.commit-files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0;
+}
+
+.commit-file-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(56, 139, 253, 0.15);
+    color: #58a6ff;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid rgba(56, 139, 253, 0.3);
+}
+
+.commit-file-badge:hover {
+    background: rgba(56, 139, 253, 0.25);
+    border-color: rgba(56, 139, 253, 0.5);
+}
+
+/* Commit filename display in graph */
+.commit-filename {
+    font-size: 11px;
+    fill: #8b949e;
+    font-weight: 400;
+}
+
+.commit-filename.vertical {
+    font-size: 10px;
+}
+
+/* Commit Graph Tooltip */
+.commit-tooltip {
+    position: fixed;
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 12px;
+    color: #c9d1d9;
+    font-size: 13px;
+    z-index: 10000;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    max-width: 300px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.commit-tooltip.visible {
+    opacity: 1;
+}
+
+.tooltip-message {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #f0f6fc;
+    font-size: 14px;
+}
+
+.tooltip-files {
+    background: rgba(56, 139, 253, 0.1);
+    border: 1px solid rgba(56, 139, 253, 0.3);
+    border-radius: 4px;
+    padding: 8px;
+    margin: 8px 0;
+    font-size: 12px;
+    color: #58a6ff;
+}
+
+.tooltip-files strong {
+    color: #f0f6fc;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.tooltip-author {
+    font-size: 12px;
+    color: #8b949e;
+    margin-top: 6px;
+}
+
+.tooltip-date {
+    font-size: 11px;
+    color: #6e7681;
+    margin-top: 2px;
+}
+
+.tooltip-branch {
+    font-size: 11px;
+    color: #8b949e;
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px solid #30363d;
+}
+
+/* Branch-grouped commits display */
+.branch-commits-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #161b22;
+    border-left: 4px solid #1f6feb;
+    border-radius: 6px;
+    margin: 20px 0 10px 0;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.branch-commits-header .branch-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.branch-commits-header .branch-name {
+    color: #f0f6fc;
+    flex-grow: 1;
+}
+
+.branch-commits-header .commit-count {
+    color: #8b949e;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.commit-item {
+    border-left: 3px solid #1f6feb;
+    padding-left: 12px;
+    margin-left: 20px;
+}
+
+.commit-branch-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: white;
+    margin-left: 8px;
+}
+
+/* Commit list container improvements */
+.commit-list-container {
+    padding: 10px 0;
+}
+
+.commit-msg {
+    font-weight: 500;
+    color: #f0f6fc;
+    margin-bottom: 8px;
+}
+
+.commit-details {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: #8b949e;
+    margin-top: 8px;
+}

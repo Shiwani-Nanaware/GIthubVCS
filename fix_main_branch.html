@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Main Branch Commits</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #0d1117;
+            color: #c9d1d9;
+        }
+        .section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2ea043;
+        }
+        .commit-item {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .has-branch {
+            border-left: 3px solid #238636;
+        }
+        .no-branch {
+            border-left: 3px solid #f85149;
+        }
+        .success {
+            color: #56d364;
+        }
+        .error {
+            color: #f85149;
+        }
+        .warning {
+            color: #ffa657;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Fix Main Branch Commits</h1>
+    
+    <div class="section">
+        <h2>Step 1: Check Commits</h2>
+        <p>This will check which commits are missing the branch property</p>
+        <button onclick="checkCommits()">Check Commits</button>
+        <div id="check-result"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Step 2: Fix Missing Branch Properties</h2>
+        <p>This will add "branch: 'main'" to all commits that don't have a branch property</p>
+        <button onclick="fixBranchProperties()">Fix Branch Properties</button>
+        <div id="fix-result"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Quick Actions</h2>
+        <button onclick="window.location.href='index.html'">Dashboard</button>
+        <button onclick="window.location.href='repo.html?repo=GitVersion'">Open GitVersion</button>
+        <button onclick="window.location.reload()">Refresh</button>
+    </div>
+
+    <script>
+        function checkCommits() {
+            const result = document.getElementById('check-result');
+            const data = localStorage.getItem('githubSimulatorData');
+            
+            if (!data) {
+                result.innerHTML = '<p class="error">❌ No data found</p>';
+                return;
+            }
+            
+            try {
+                const repos = JSON.parse(data);
+                let html = '<h3>Commit Analysis:</h3>';
+                let totalCommits = 0;
+                let commitsWithBranch = 0;
+                let commitsWithoutBranch = 0;
+                
+                repos.forEach(repo => {
+                    html += `<h4>${repo.name}</h4>`;
+                    
+                    if (!repo.commits || repo.commits.length === 0) {
+                        html += '<p class="warning">No commits found</p>';
+                        return;
+                    }
+                    
+                    repo.commits.forEach(commit => {
+                        totalCommits++;
+                        const hasBranch = commit.branch && commit.branch.length > 0;
+                        
+                        if (hasBranch) {
+                            commitsWithBranch++;
+                        } else {
+                            commitsWithoutBranch++;
+                        }
+                        
+                        html += `
+                            <div class="commit-item ${hasBranch ? 'has-branch' : 'no-branch'}">
+                                <strong>${commit.message}</strong><br>
+                                <small>${commit.author} | ${commit.date}</small><br>
+                                ${hasBranch ? 
+                                    `<span class="success">✅ Branch: ${commit.branch}</span>` : 
+                                    `<span class="error">❌ No branch property</span>`
+                                }
+                            </div>
+                        `;
+                    });
+                });
+                
+                html = `
+                    <div style="background: #21262d; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                        <p><strong>Total Commits:</strong> ${totalCommits}</p>
+                        <p class="success"><strong>With Branch:</strong> ${commitsWithBranch}</p>
+                        <p class="error"><strong>Without Branch:</strong> ${commitsWithoutBranch}</p>
+                        ${commitsWithoutBranch > 0 ? 
+                            '<p class="warning">⚠️ Click "Fix Branch Properties" to add branch property to commits</p>' : 
+                            '<p class="success">✅ All commits have branch property!</p>'
+                        }
+                    </div>
+                ` + html;
+                
+                result.innerHTML = html;
+            } catch (e) {
+                result.innerHTML = `<p class="error">❌ Error: ${e.message}</p>`;
+            }
+        }
+        
+        function fixBranchProperties() {
+            const result = document.getElementById('fix-result');
+            const data = localStorage.getItem('githubSimulatorData');
+            
+            if (!data) {
+                result.innerHTML = '<p class="error">❌ No data found</p>';
+                return;
+            }
+            
+            try {
+                const repos = JSON.parse(data);
+                let fixed = 0;
+                
+                repos.forEach(repo => {
+                    if (!repo.commits) return;
+                    
+                    repo.commits.forEach(commit => {
+                        // If commit doesn't have branch property, set it to 'main'
+                        if (!commit.branch || commit.branch.length === 0) {
+                            commit.branch = 'main';
+                            fixed++;
+                        }
+                    });
+                    
+                    // Also fix branch-specific commits
+                    if (repo.branches) {
+                        repo.branches.forEach(branch => {
+                            if (!branch.commits) return;
+                            
+                            branch.commits.forEach(commit => {
+                                if (!commit.branch || commit.branch.length === 0) {
+                                    commit.branch = branch.name;
+                                    fixed++;
+                                }
+                            });
+                        });
+                    }
+                });
+                
+                // Save back to localStorage
+                localStorage.setItem('githubSimulatorData', JSON.stringify(repos));
+                
+                result.innerHTML = `
+                    <div style="background: #21262d; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                        <p class="success">✅ Fixed ${fixed} commits!</p>
+                        <p>All commits now have the branch property set.</p>
+                        <p style="margin-top: 15px;">
+                            <button onclick="window.location.reload()">Refresh to Re-check</button>
+                            <button onclick="window.location.href='repo.html?repo=GitVersion'">View in App</button>
+                        </p>
+                        <p style="margin-top: 10px; color: #8b949e; font-size: 13px;">
+                            💡 Go to Commits tab and click "Show Graph" to see all commits including main branch!
+                        </p>
+                    </div>
+                `;
+            } catch (e) {
+                result.innerHTML = `<p class="error">❌ Error: ${e.message}</p>`;
+            }
+        }
+        
+        // Auto-check on load
+        window.onload = function() {
+            checkCommits();
+        };
+    </script>
+</body>
+</html>

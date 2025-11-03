@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Branch Colors in Commit Graph</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #0d1117;
+            color: #c9d1d9;
+        }
+        .section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2ea043;
+        }
+        .color-demo {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        .color-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            background: #21262d;
+            border-radius: 6px;
+            border: 1px solid #30363d;
+        }
+        .color-circle {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid #0d1117;
+        }
+        .branch-name {
+            font-weight: 600;
+        }
+        .success {
+            color: #56d364;
+        }
+        .info {
+            color: #58a6ff;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 Branch Colors in Commit Graph</h1>
+    
+    <div class="section">
+        <h2>Current Branch Colors</h2>
+        <p>These are the colors assigned to different branches in your commit graph:</p>
+        <div id="color-display" class="color-demo"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Create Test Repository with Multiple Branches</h2>
+        <p>This will create a test repository with commits in different branches to demonstrate the colors.</p>
+        <button onclick="createTestRepo()">Create Multi-Branch Test Repo</button>
+        <div id="create-result"></div>
+    </div>
+    
+    <div class="section">
+        <h2>View Your Repository</h2>
+        <button onclick="window.location.href='repo.html?repo=ColorTestRepo'">Open ColorTestRepo</button>
+        <button onclick="window.location.href='index.html'">Go to Dashboard</button>
+    </div>
+
+    <script>
+        // Branch color configuration (same as in script.js)
+        const branchColors = {
+            'main': '#1f6feb',
+            'master': '#1f6feb',
+            'feature/auth': '#56d364',
+            'feature/ui': '#f85149',
+            'feature/api': '#d2a8ff',
+            'hotfix/bug': '#ffa657',
+            'develop': '#ff7b72'
+        };
+        
+        function displayColors() {
+            const container = document.getElementById('color-display');
+            container.innerHTML = '';
+            
+            Object.entries(branchColors).forEach(([branch, color]) => {
+                const item = document.createElement('div');
+                item.className = 'color-item';
+                item.innerHTML = `
+                    <div class="color-circle" style="background-color: ${color}"></div>
+                    <span class="branch-name">${branch}</span>
+                    <span style="color: #8b949e; font-size: 12px;">${color}</span>
+                `;
+                container.appendChild(item);
+            });
+        }
+        
+        function createTestRepo() {
+            const result = document.getElementById('create-result');
+            
+            try {
+                let repos = JSON.parse(localStorage.getItem('githubSimulatorData')) || [];
+                
+                // Remove existing test repo if it exists
+                repos = repos.filter(r => r.name !== 'ColorTestRepo');
+                
+                const testRepo = {
+                    name: 'ColorTestRepo',
+                    description: 'Test repository with multiple branches and colors',
+                    createdDate: new Date().toLocaleDateString(),
+                    isPrivate: false,
+                    currentBranch: 'main',
+                    branches: [
+                        { name: 'main', parent: '', current: true, files: [], commits: [] },
+                        { name: 'feature/auth', parent: 'main', current: false, files: [], commits: [] },
+                        { name: 'feature/ui', parent: 'main', current: false, files: [], commits: [] },
+                        { name: 'hotfix/bug', parent: 'main', current: false, files: [], commits: [] }
+                    ],
+                    files: [],
+                    commits: [
+                        {
+                            message: 'Initial commit',
+                            author: 'Tester',
+                            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                            branch: 'main',
+                            timestamp: Date.now() - 10000,
+                            files: ['README.md']
+                        },
+                        {
+                            message: 'Added authentication',
+                            author: 'Tester',
+                            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                            branch: 'feature/auth',
+                            timestamp: Date.now() - 9000,
+                            files: ['auth.js']
+                        },
+                        {
+                            message: 'Updated auth logic',
+                            author: 'Tester',
+                            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                            branch: 'feature/auth',
+                            timestamp: Date.now() - 8000,
+                            files: ['auth.js']
+                        },
+                        {
+                            message: 'Added UI components',
+                            author: 'Tester',
+                            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                            branch: 'feature/ui',
+                            timestamp: Date.now() - 7000,
+                            files: ['Button.js', 'Header.js']
+                        },
+                        {
+                            message: 'Styled components',
+                            author: 'Tester',
+                            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                            branch: 'feature/ui',
+                            timestamp: Date.now() - 6000,
+                            files: ['styles.css']
+                        },
+                        {
+                            message: 'Merged auth feature',
+                            author: 'Tester',
+                            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                            branch: 'main',
+                            timestamp: Date.now() - 5000,
+                            files: ['auth.js']
+                        },
+                        {
+                            message: 'Fixed critical bug',
+                            author: 'Tester',
+                            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                            branch: 'hotfix/bug',
+                            timestamp: Date.now() - 4000,
+                            files: ['auth.js']
+                        },
+                        {
+                            message: 'Merged hotfix',
+                            author: 'Tester',
+                            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                            branch: 'main',
+                            timestamp: Date.now() - 3000,
+                            files: ['auth.js']
+                        },
+                        {
+                            message: 'Merged UI feature',
+                            author: 'Tester',
+                            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                            branch: 'main',
+                            timestamp: Date.now() - 2000,
+                            files: ['Button.js', 'Header.js', 'styles.css']
+                        }
+                    ]
+                };
+                
+                // Add commits to branch-specific arrays
+                testRepo.commits.forEach(commit => {
+                    const branch = testRepo.branches.find(b => b.name === commit.branch);
+                    if (branch) {
+                        if (!branch.commits) branch.commits = [];
+                        branch.commits.push({...commit});
+                    }
+                });
+                
+                repos.push(testRepo);
+                localStorage.setItem('githubSimulatorData', JSON.stringify(repos));
+                
+                result.innerHTML = `
+                    <div style="background: #21262d; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                        <p class="success">✅ ColorTestRepo created successfully!</p>
+                        <p class="info">📊 Repository has:</p>
+                        <ul style="margin: 10px 0; padding-left: 20px;">
+                            <li>4 branches (main, feature/auth, feature/ui, hotfix/bug)</li>
+                            <li>9 commits across all branches</li>
+                            <li>Each branch has a unique color</li>
+                        </ul>
+                        <p style="margin-top: 15px;">
+                            <button onclick="window.location.href='repo.html?repo=ColorTestRepo'">
+                                Open Repository
+                            </button>
+                        </p>
+                        <p style="margin-top: 10px; color: #8b949e; font-size: 13px;">
+                            💡 Go to Commits tab and click "Show Graph" to see the colored branches!
+                        </p>
+                    </div>
+                `;
+            } catch (e) {
+                result.innerHTML = `<p style="color: #f85149;">❌ Error: ${e.message}</p>`;
+            }
+        }
+        
+        // Display colors on load
+        window.onload = function() {
+            displayColors();
+        };
+    </script>
+</body>
+</html>

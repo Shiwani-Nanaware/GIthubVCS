@@ -573,7 +573,7 @@ function drawVerticalCommit(svg, commit) {
     
     g.appendChild(circle);
     
-    // Commit message (positioned to the right) - show complete file names
+    // Commit message (positioned to the right)
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.setAttribute('x', commit.x + 20);
     text.setAttribute('y', commit.y + 4);
@@ -583,26 +583,51 @@ function drawVerticalCommit(svg, commit) {
     
     g.appendChild(text);
     
-    // Display filename from commit data or extract from message
-    let filename = null;
+    // Display filenames from commit data
+    let filenames = [];
     
-    // First try to get filename from commit.files array
+    // First try to get filenames from commit.files array
     if (commit.files && commit.files.length > 0) {
-        filename = commit.files[0]; // Show first file if multiple
+        filenames = commit.files;
     } else {
         // Fallback to extracting from commit message
-        filename = extractFilenameFromCommit(commit.message);
+        const extractedFile = extractFilenameFromCommit(commit.message);
+        if (extractedFile) {
+            filenames = [extractedFile];
+        }
     }
     
-    if (filename) {
-        const fileText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        fileText.setAttribute('x', commit.x + 20);
-        fileText.setAttribute('y', commit.y + 18); // Position below commit message
-        fileText.setAttribute('class', 'commit-filename vertical');
-        fileText.setAttribute('text-anchor', 'start');
-        fileText.textContent = `📄 ${filename}`;
+    // Display all filenames (up to 3, then show count)
+    if (filenames.length > 0) {
+        const maxFilesToShow = 3;
+        const filesToDisplay = filenames.slice(0, maxFilesToShow);
         
-        g.appendChild(fileText);
+        filesToDisplay.forEach((filename, index) => {
+            const fileText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            fileText.setAttribute('x', commit.x + 20);
+            fileText.setAttribute('y', commit.y + 18 + (index * 12)); // Stack files vertically
+            fileText.setAttribute('class', 'commit-filename vertical');
+            fileText.setAttribute('text-anchor', 'start');
+            fileText.setAttribute('fill', '#58a6ff');
+            fileText.setAttribute('font-size', '10px');
+            fileText.textContent = `📄 ${truncateText(filename, 30)}`;
+            
+            g.appendChild(fileText);
+        });
+        
+        // If more than maxFilesToShow files, show count
+        if (filenames.length > maxFilesToShow) {
+            const moreText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            moreText.setAttribute('x', commit.x + 20);
+            moreText.setAttribute('y', commit.y + 18 + (maxFilesToShow * 12));
+            moreText.setAttribute('class', 'commit-filename vertical');
+            moreText.setAttribute('text-anchor', 'start');
+            moreText.setAttribute('fill', '#8b949e');
+            moreText.setAttribute('font-size', '9px');
+            moreText.textContent = `+${filenames.length - maxFilesToShow} more file${filenames.length - maxFilesToShow > 1 ? 's' : ''}`;
+            
+            g.appendChild(moreText);
+        }
     }
     
     // Add commit data for tooltip
@@ -610,6 +635,9 @@ function drawVerticalCommit(svg, commit) {
     g.setAttribute('data-author', commit.author);
     g.setAttribute('data-date', commit.date);
     g.setAttribute('data-branch', commit.branch);
+    if (filenames.length > 0) {
+        g.setAttribute('data-files', filenames.join(', '));
+    }
     
     svg.appendChild(g);
 }
@@ -633,6 +661,10 @@ function addVerticalBranchLabels(svg, graphData) {
     const featureColors = ['#56d364', '#f85149', '#d2a8ff', '#ffa657', '#ff7b72'];
     let colorIndex = 0;
     
+    // Calculate positions to avoid overlap
+    const labelSpacing = 10; // Minimum space between labels
+    const labelPositions = [];
+    
     allBranches.forEach((branchName, index) => {
         const branchCommit = graphData.commits.find(c => c.branch === branchName);
         
@@ -647,12 +679,44 @@ function addVerticalBranchLabels(svg, graphData) {
             color = branchColors[branchName] || featureColors[colorIndex % featureColors.length];
             if (!branchColors[branchName]) colorIndex++;
         }
-        const textWidth = Math.max(60, branchName.length * 6 + 10);
+        
+        // Calculate text width dynamically
+        const textWidth = Math.max(70, branchName.length * 7 + 20);
+        
+        // Calculate label boundaries
+        let labelX = x - textWidth / 2;
+        let labelRight = labelX + textWidth;
+        
+        // Check for overlap with previous labels and adjust position
+        let yOffset = 10; // Default Y position
+        let overlaps = true;
+        
+        while (overlaps) {
+            overlaps = false;
+            for (const prevLabel of labelPositions) {
+                // Check if labels are at same Y level and overlap horizontally
+                if (prevLabel.y === yOffset) {
+                    const horizontalOverlap = !(labelRight < prevLabel.x || labelX > prevLabel.right);
+                    if (horizontalOverlap) {
+                        overlaps = true;
+                        yOffset += 30; // Move to next row
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Store this label's position for overlap checking
+        labelPositions.push({
+            x: labelX,
+            right: labelRight,
+            y: yOffset
+        });
         
         // Branch label background
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        rect.setAttribute('x', x - textWidth/2);
-        rect.setAttribute('y', 10);
+        rect.setAttribute('x', labelX);
+        rect.setAttribute('y', yOffset);
         rect.setAttribute('width', textWidth);
         rect.setAttribute('height', 20);
         rect.setAttribute('fill', color);
@@ -662,7 +726,7 @@ function addVerticalBranchLabels(svg, graphData) {
         // Branch label text
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.setAttribute('x', x);
-        text.setAttribute('y', 24);
+        text.setAttribute('y', yOffset + 14);
         text.setAttribute('class', 'branch-label vertical');
         text.setAttribute('text-anchor', 'middle');
         text.setAttribute('fill', '#ffffff');
@@ -1008,9 +1072,21 @@ function addCommitGraphTooltip() {
             const author = e.currentTarget.getAttribute('data-author');
             const date = e.currentTarget.getAttribute('data-date');
             const branch = e.currentTarget.getAttribute('data-branch');
+            const files = e.currentTarget.getAttribute('data-files');
+            
+            let filesHtml = '';
+            if (files) {
+                const fileList = files.split(', ');
+                filesHtml = '<div class="tooltip-files"><strong>Files:</strong><br>';
+                fileList.forEach(file => {
+                    filesHtml += `📄 ${file}<br>`;
+                });
+                filesHtml += '</div>';
+            }
             
             tooltip.innerHTML = `
                 <div class="tooltip-message">${message}</div>
+                ${filesHtml}
                 <div class="tooltip-author">by ${author}</div>
                 <div class="tooltip-date">${date}</div>
                 <div class="tooltip-branch">Branch: ${branch}</div>
@@ -1094,12 +1170,24 @@ function renderCommitList() {
     sortedCommits.forEach((commit, index) => {
         const commitItem = document.createElement('div');
         commitItem.className = 'commit-item';
+        
+        // Extract files from commit or message
+        let filesHtml = '';
+        if (commit.files && commit.files.length > 0) {
+            filesHtml = '<div class="commit-files">';
+            commit.files.forEach(file => {
+                filesHtml += `<span class="commit-file-badge">📄 ${file}</span>`;
+            });
+            filesHtml += '</div>';
+        }
+        
         commitItem.innerHTML = `
             <div class="commit-info">
                 <div class="commit-header">
                     <span class="commit-message-text">${commit.message}</span>
                     <span class="commit-branch-badge" style="background-color: ${getBranchColor(commit.branch)}">${commit.branch || 'main'}</span>
                 </div>
+                ${filesHtml}
                 <div class="commit-meta">
                     <span class="commit-author">by ${commit.author}</span>
                     <span class="commit-date">${commit.date}</span>
@@ -1143,8 +1231,14 @@ function updateCommitGraphRealTime() {
 
 // Enhanced commit creation with graph update
 function createCommitWithGraphUpdate(message, author, branch = 'main', files = []) {
-    const repo = getCurrentRepository();
-    if (!repo) return;
+    // Get repository from global repositories array
+    const repoIndex = repositories.findIndex(r => r.name === currentRepoName);
+    if (repoIndex === -1) {
+        console.error('Repository not found:', currentRepoName);
+        return;
+    }
+    
+    const repo = repositories[repoIndex];
     
     // Add new commit
     const newCommit = {
@@ -1166,14 +1260,6 @@ function createCommitWithGraphUpdate(message, author, branch = 'main', files = [
     
     repo.commits.push(newCommit);
     
-    // Sync global repositories array with latest commit data
-    const globalRepoIndex = repositories.findIndex(r => r.name === repo.name);
-    if (globalRepoIndex >= 0) {
-        repositories[globalRepoIndex] = repo;
-    } else {
-        repositories.push(repo);
-    }
-    
     // Also add commit to the specific branch's commits array
     if (repo.branches) {
         const targetBranch = repo.branches.find(b => b.name === branch);
@@ -1192,13 +1278,14 @@ function createCommitWithGraphUpdate(message, author, branch = 'main', files = [
         }
     }
     
-    // Update localStorage
-    const repositories = JSON.parse(localStorage.getItem('githubSimulatorData')) || [];
-    const repoIndex = repositories.findIndex(r => r.name === repo.name);
-    if (repoIndex >= 0) {
-        repositories[repoIndex] = repo;
-        localStorage.setItem('githubSimulatorData', JSON.stringify(repositories));
-    }
+    // Update the global repositories array
+    repositories[repoIndex] = repo;
+    
+    // Update localStorage with the global repositories array
+    localStorage.setItem('githubSimulatorData', JSON.stringify(repositories));
+    
+    console.log('Commit created:', newCommit);
+    console.log('Total commits in repo:', repo.commits.length);
     
     // Update commit graph if visible with animation
     updateCommitGraphRealTime();
@@ -2053,20 +2140,72 @@ function renderCommits(commits) {
     
     if (commits.length === 0) {
         commitsList.innerHTML = '<p class="no-commits-message">No commits yet. Create files to see commits here.</p>';
-    } else {
-        commits.forEach(commit => {
+        return;
+    }
+    
+    // Group commits by branch
+    const commitsByBranch = {};
+    commits.forEach(commit => {
+        const branch = commit.branch || 'main';
+        if (!commitsByBranch[branch]) {
+            commitsByBranch[branch] = [];
+        }
+        commitsByBranch[branch].push(commit);
+    });
+    
+    // Sort branches: main first, then others alphabetically
+    const branchNames = Object.keys(commitsByBranch).sort((a, b) => {
+        if (a === 'main') return -1;
+        if (b === 'main') return 1;
+        return a.localeCompare(b);
+    });
+    
+    // Render commits grouped by branch
+    branchNames.forEach(branchName => {
+        const branchCommits = commitsByBranch[branchName];
+        const branchColor = getBranchColor(branchName);
+        
+        // Branch header
+        const branchHeader = document.createElement('div');
+        branchHeader.className = 'branch-commits-header';
+        branchHeader.style.borderLeftColor = branchColor;
+        branchHeader.innerHTML = `
+            <svg class="branch-icon" viewBox="0 0 16 16" fill="currentColor" style="color: ${branchColor}">
+                <path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Zm-6 0a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Zm8.25-.75a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM4.25 12a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/>
+            </svg>
+            <span class="branch-name">${branchName}</span>
+            <span class="commit-count">${branchCommits.length} commit${branchCommits.length !== 1 ? 's' : ''}</span>
+        `;
+        commitsList.appendChild(branchHeader);
+        
+        // Render commits for this branch
+        branchCommits.forEach(commit => {
             const commitItem = document.createElement('div');
             commitItem.className = 'commit-item';
+            commitItem.style.borderLeftColor = branchColor;
+            
+            // Extract files from commit or message
+            let filesHtml = '';
+            if (commit.files && commit.files.length > 0) {
+                filesHtml = '<div class="commit-files">';
+                commit.files.forEach(file => {
+                    filesHtml += `<span class="commit-file-badge">📄 ${file}</span>`;
+                });
+                filesHtml += '</div>';
+            }
+            
             commitItem.innerHTML = `
                 <div class="commit-msg">${commit.message}</div>
+                ${filesHtml}
                 <div class="commit-details">
                     <span class="commit-author">By ${commit.author}</span>
                     <span class="commit-date">on ${commit.date}</span>
+                    <span class="commit-branch-tag" style="background-color: ${branchColor}">${commit.branch || 'main'}</span>
                 </div>
             `;
             commitsList.appendChild(commitItem);
         });
-    }
+    });
 }
 
 // --- Modal Functions (unchanged from previous response) ---
@@ -2151,21 +2290,44 @@ async function createRepository() {
     // Save state for undo
     saveStateForUndo('CREATE_REPO', `Created repository: ${name}`);
     
-    // Add to local data
+    // Add to local data with proper structure
     const newRepo = {
         name: name,
         description: description || 'Repository',
         createdDate: new Date().toLocaleDateString(),
         isPrivate: document.querySelector('#newRepoModal input[type="checkbox"]').checked,
+        currentBranch: 'main',
+        branches: [
+            { 
+                name: 'main', 
+                parent: '', 
+                current: true,
+                files: [],
+                commits: []
+            }
+        ],
         files: [],
         commits: [{
             message: `Created repository: ${name}`,
-            author: 'Shiwani',
-            date: new Date().toLocaleDateString()
+            author: currentUser,
+            date: new Date().toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            }),
+            branch: 'main',
+            timestamp: Date.now(),
+            files: []
         }]
     };
     
     repositories.push(newRepo);
+    
+    // Save to localStorage
+    localStorage.setItem('githubSimulatorData', JSON.stringify(repositories));
+    
+    console.log('Repository created:', name);
+    console.log('Initial commit added');
     
     // Call backend API
     await callBackendAPI('POST', '/api/repositories', `name=${name}&description=${description}&isPrivate=${newRepo.isPrivate}`);
@@ -2252,63 +2414,63 @@ async function createNewFile() {
     }
     
     const fullFileName = filePath ? `${filePath}/${fileName}` : fileName;
-    const currentRepo = repositories.find(r => r.name === currentRepoName);
     
-    if (currentRepo) {
-        // Check if file already exists
-        if (currentRepo.files.find(f => f.name === fullFileName)) {
-            alert('File already exists!');
-            return;
-        }
-        
-        // Save state for undo
-        saveStateForUndo('CREATE_FILE', `Created file: ${fullFileName}`);
-        
-        // Add file to repository
-        const newFile = {
-            name: fullFileName,
-            info: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
-            date: 'a few seconds ago',
-            content: content
-        };
-        
-        currentRepo.files.push(newFile);
-        
-        // Save to localStorage immediately after adding file
-        const repositories = JSON.parse(localStorage.getItem('githubSimulatorData')) || [];
-        const repoIndex = repositories.findIndex(r => r.name === currentRepo.name);
-        if (repoIndex >= 0) {
-            repositories[repoIndex] = currentRepo;
-            localStorage.setItem('githubSimulatorData', JSON.stringify(repositories));
-        }
-        
-        // Create auto-commit for the new files
-        const currentBranchData = currentRepo.branches?.find(b => b.current);
-        if (currentBranchData) {
-            if (!currentBranchData.files) {
-                currentBranchData.files = [];
-            }
-            currentBranchData.files.push({...newFile}); // Deep copy
-            
-            // Add commit to branch-specific commits
-            if (!currentBranchData.commits) {
-                currentBranchData.commits = [];
-            }
-            currentBranchData.commits.push({
-                message: commitMessage || `Created file: ${fullFileName}`,
-                author: 'Shiwani',
-                date: new Date().toLocaleDateString()
-            });
-        }
-        
-        // Create auto-commit for the new file
-        const autoCommitMessage = commitMessage || `Added ${fullFileName}`;
-        createCommitWithGraphUpdate(autoCommitMessage, currentUser, currentRepo.currentBranch || 'main', [fullFileName]);
-        
-        // Call backend API
-        await callBackendAPI('POST', `/api/repositories/${currentRepoName}/files`, 
-            `name=${fullFileName}&content=${content}`);
+    // Find repository in global array
+    const repoIndex = repositories.findIndex(r => r.name === currentRepoName);
+    if (repoIndex === -1) {
+        alert('Repository not found');
+        return;
     }
+    
+    const currentRepo = repositories[repoIndex];
+    
+    // Check if file already exists
+    if (currentRepo.files && currentRepo.files.find(f => f.name === fullFileName)) {
+        alert('File already exists!');
+        return;
+    }
+    
+    // Save state for undo
+    saveStateForUndo('CREATE_FILE', `Created file: ${fullFileName}`);
+    
+    // Add file to repository
+    const newFile = {
+        name: fullFileName,
+        info: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
+        date: 'a few seconds ago',
+        content: content
+    };
+    
+    if (!currentRepo.files) {
+        currentRepo.files = [];
+    }
+    currentRepo.files.push(newFile);
+    
+    // Add file to current branch
+    const currentBranchData = currentRepo.branches?.find(b => b.current);
+    if (currentBranchData) {
+        if (!currentBranchData.files) {
+            currentBranchData.files = [];
+        }
+        currentBranchData.files.push({...newFile}); // Deep copy
+    }
+    
+    // Update global repositories array
+    repositories[repoIndex] = currentRepo;
+    
+    // Save to localStorage
+    localStorage.setItem('githubSimulatorData', JSON.stringify(repositories));
+    
+    console.log('File created:', fullFileName);
+    console.log('Repository files:', currentRepo.files.length);
+    
+    // Create auto-commit for the new file
+    const autoCommitMessage = commitMessage || `Added ${fullFileName}`;
+    createCommitWithGraphUpdate(autoCommitMessage, currentUser, currentRepo.currentBranch || 'main', [fullFileName]);
+    
+    // Call backend API
+    await callBackendAPI('POST', `/api/repositories/${currentRepoName}/files`, 
+        `name=${fullFileName}&content=${content}`);
     
     closeModal('newFileModal');
     showSection('files');

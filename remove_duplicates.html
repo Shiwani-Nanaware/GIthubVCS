@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remove Duplicate Commits</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #0d1117;
+            color: #c9d1d9;
+        }
+        .section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2ea043;
+        }
+        .danger-btn {
+            background: #da3633;
+        }
+        .danger-btn:hover {
+            background: #f85149;
+        }
+        .commit-item {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .duplicate {
+            border-left: 3px solid #f85149;
+        }
+        .unique {
+            border-left: 3px solid #238636;
+        }
+        .success {
+            color: #56d364;
+        }
+        .error {
+            color: #f85149;
+        }
+        .warning {
+            color: #ffa657;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧹 Remove Duplicate Commits</h1>
+    
+    <div class="section">
+        <h2>Step 1: Analyze Duplicates</h2>
+        <p>This will find commits that are duplicates (same file, similar message, close timestamps)</p>
+        <button onclick="analyzeDuplicates()">Analyze Duplicates</button>
+        <div id="analysis-result"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Step 2: Remove Duplicates</h2>
+        <p>This will keep only one commit per file operation and remove duplicates</p>
+        <button onclick="removeDuplicates()" class="danger-btn">Remove Duplicates</button>
+        <div id="remove-result"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Quick Actions</h2>
+        <button onclick="window.location.href='index.html'">Go to Dashboard</button>
+        <button onclick="window.location.href='repo.html?repo=GitVersion'">Open GitVersion</button>
+        <button onclick="window.location.reload()">Refresh Page</button>
+    </div>
+
+    <script>
+        function extractFilenameFromMessage(message) {
+            // Extract filename from various commit message patterns
+            const patterns = [
+                /Deleted file:\s*(.+)/i,
+                /Removed\s+(.+)/i,
+                /Added\s+(.+)/i,
+                /Updated\s+(.+)/i,
+                /Created file:\s*(.+)/i,
+                /file:\s*(.+)/i
+            ];
+            
+            for (const pattern of patterns) {
+                const match = message.match(pattern);
+                if (match && match[1]) {
+                    return match[1].trim();
+                }
+            }
+            return null;
+        }
+        
+        function areCommitsSimilar(commit1, commit2) {
+            // Check if two commits are duplicates
+            
+            // Extract filenames from both commits
+            const file1 = commit1.files && commit1.files.length > 0 ? 
+                commit1.files[0] : extractFilenameFromMessage(commit1.message);
+            const file2 = commit2.files && commit2.files.length > 0 ? 
+                commit2.files[0] : extractFilenameFromMessage(commit2.message);
+            
+            if (!file1 || !file2) return false;
+            
+            // Same file?
+            if (file1.toLowerCase() !== file2.toLowerCase()) return false;
+            
+            // Similar action? (both delete/remove)
+            const isDelete1 = /delete|remove/i.test(commit1.message);
+            const isDelete2 = /delete|remove/i.test(commit2.message);
+            const isAdd1 = /add|create/i.test(commit1.message);
+            const isAdd2 = /add|create/i.test(commit2.message);
+            const isEdit1 = /edit|update|modif/i.test(commit1.message);
+            const isEdit2 = /edit|update|modif/i.test(commit2.message);
+            
+            if ((isDelete1 && isDelete2) || (isAdd1 && isAdd2) || (isEdit1 && isEdit2)) {
+                // Check if timestamps are close (within 5 seconds)
+                const time1 = commit1.timestamp || 0;
+                const time2 = commit2.timestamp || 0;
+                const timeDiff = Math.abs(time1 - time2);
+                
+                return timeDiff < 5000; // 5 seconds
+            }
+            
+            return false;
+        }
+        
+        function analyzeDuplicates() {
+            const result = document.getElementById('analysis-result');
+            const data = localStorage.getItem('githubSimulatorData');
+            
+            if (!data) {
+                result.innerHTML = '<p class="error">❌ No data found</p>';
+                return;
+            }
+            
+            try {
+                const repos = JSON.parse(data);
+                let html = '<h3>Duplicate Analysis:</h3>';
+                let totalDuplicates = 0;
+                
+                repos.forEach(repo => {
+                    if (!repo.commits || repo.commits.length === 0) return;
+                    
+                    html += `<h4>${repo.name}</h4>`;
+                    
+                    const duplicateGroups = [];
+                    const processed = new Set();
+                    
+                    // Find duplicate groups
+                    for (let i = 0; i < repo.commits.length; i++) {
+                        if (processed.has(i)) continue;
+                        
+                        const group = [i];
+                        
+                        for (let j = i + 1; j < repo.commits.length; j++) {
+                            if (processed.has(j)) continue;
+                            
+                            if (areCommitsSimilar(repo.commits[i], repo.commits[j])) {
+                                group.push(j);
+                                processed.add(j);
+                            }
+                        }
+                        
+                        if (group.length > 1) {
+                            duplicateGroups.push(group);
+                            totalDuplicates += group.length - 1;
+                        }
+                    }
+                    
+                    if (duplicateGroups.length === 0) {
+                        html += '<p class="success">✅ No duplicates found</p>';
+                    } else {
+                        html += `<p class="warning">⚠️ Found ${duplicateGroups.length} duplicate groups (${totalDuplicates} duplicates)</p>`;
+                        
+                        duplicateGroups.forEach((group, idx) => {
+                            html += `<div style="margin: 10px 0; padding: 10px; background: #21262d; border-radius: 6px;">`;
+                            html += `<strong>Duplicate Group ${idx + 1}:</strong><br>`;
+                            
+                            group.forEach((commitIdx, pos) => {
+                                const commit = repo.commits[commitIdx];
+                                html += `
+                                    <div class="commit-item ${pos === 0 ? 'unique' : 'duplicate'}">
+                                        ${pos === 0 ? '✅ KEEP: ' : '❌ REMOVE: '}
+                                        <strong>${commit.message}</strong><br>
+                                        <small>${commit.date} | ${commit.branch || 'main'}</small>
+                                    </div>
+                                `;
+                            });
+                            
+                            html += `</div>`;
+                        });
+                    }
+                });
+                
+                if (totalDuplicates > 0) {
+                    html = `
+                        <div style="background: #21262d; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                            <p class="warning"><strong>Total Duplicates Found:</strong> ${totalDuplicates}</p>
+                            <p>Click "Remove Duplicates" to clean them up.</p>
+                        </div>
+                    ` + html;
+                } else {
+                    html = `
+                        <div style="background: #21262d; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                            <p class="success">✅ No duplicates found! Your commits are clean.</p>
+                        </div>
+                    ` + html;
+                }
+                
+                result.innerHTML = html;
+            } catch (e) {
+                result.innerHTML = `<p class="error">❌ Error: ${e.message}</p>`;
+            }
+        }
+        
+        function removeDuplicates() {
+            const result = document.getElementById('remove-result');
+            const data = localStorage.getItem('githubSimulatorData');
+            
+            if (!data) {
+                result.innerHTML = '<p class="error">❌ No data found</p>';
+                return;
+            }
+            
+            try {
+                const repos = JSON.parse(data);
+                let totalRemoved = 0;
+                
+                repos.forEach(repo => {
+                    if (!repo.commits || repo.commits.length === 0) return;
+                    
+                    const toRemove = new Set();
+                    
+                    // Find duplicates to remove
+                    for (let i = 0; i < repo.commits.length; i++) {
+                        if (toRemove.has(i)) continue;
+                        
+                        for (let j = i + 1; j < repo.commits.length; j++) {
+                            if (toRemove.has(j)) continue;
+                            
+                            if (areCommitsSimilar(repo.commits[i], repo.commits[j])) {
+                                toRemove.add(j); // Remove the later one
+                            }
+                        }
+                    }
+                    
+                    // Remove duplicates
+                    if (toRemove.size > 0) {
+                        const newCommits = repo.commits.filter((_, idx) => !toRemove.has(idx));
+                        repo.commits = newCommits;
+                        totalRemoved += toRemove.size;
+                    }
+                });
+                
+                // Save back to localStorage
+                localStorage.setItem('githubSimulatorData', JSON.stringify(repos));
+                
+                result.innerHTML = `
+                    <div style="background: #21262d; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                        <p class="success">✅ Removed ${totalRemoved} duplicate commits!</p>
+                        <p style="margin-top: 15px;">
+                            <button onclick="window.location.reload()">Refresh to Re-analyze</button>
+                            <button onclick="window.location.href='repo.html?repo=GitVersion'">View in App</button>
+                        </p>
+                    </div>
+                `;
+            } catch (e) {
+                result.innerHTML = `<p class="error">❌ Error: ${e.message}</p>`;
+            }
+        }
+        
+        // Auto-analyze on load
+        window.onload = function() {
+            analyzeDuplicates();
+        };
+    </script>
+</body>
+</html>
